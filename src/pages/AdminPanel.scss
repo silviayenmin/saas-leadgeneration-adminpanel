@@ -1,0 +1,890 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+// ==========================================
+// ROOT LAYOUT & FIXED SIDEBAR
+// ==========================================
+.admin-dashboard-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background-color: $bg-main;
+}
+
+// Sidebar Style
+.admin-sidebar {
+  width: 260px;
+  background: $surface;
+  border-right: 1px solid $border-color;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex-shrink: 0;
+  z-index: 100;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
+
+  .sidebar-brand {
+    padding: $spacing-xl $spacing-md;
+    border-bottom: 1px solid $border-color;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    .brand-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: $radius-md;
+        background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+        @include flex-center;
+        color: #FFFFFF;
+        box-shadow: 0 4px 10px rgba(3, 113, 114, 0.2);
+        flex-shrink: 0;
+      }
+
+      .brand-text {
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        background: linear-gradient(135deg, $text-primary 0%, $secondary 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        white-space: nowrap;
+      }
+    }
+
+    .admin-badge-pill {
+      background: rgba(3, 113, 114, 0.08);
+      color: $primary;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 3px 6px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(3, 113, 114, 0.15);
+      flex-shrink: 0;
+    }
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: $spacing-lg $spacing-md;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: $radius-md;
+      color: $text-secondary;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all $transition-base;
+      width: 100%;
+      text-align: left;
+      border: 1px solid transparent;
+
+      svg {
+        color: $text-muted;
+        transition: color $transition-base;
+      }
+
+      &:hover {
+        background: rgba(148, 163, 184, 0.05);
+        color: $text-primary;
+
+        svg {
+          color: $text-primary;
+        }
+      }
+
+      &.active {
+        background: linear-gradient(135deg, #037172 0%, #0d9488 100%) !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 12px rgba(3, 113, 114, 0.35) !important;
+        border: none !important;
+
+        svg {
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+
+  .sidebar-footer {
+    padding: $spacing-lg;
+    border-top: 1px solid $border-color;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-sm;
+
+    .admin-profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      overflow: hidden;
+
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: #0EA5A4;
+        color: #FFFFFF;
+        font-weight: 700;
+        @include flex-center;
+        flex-shrink: 0;
+      }
+
+      .details {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+
+        .name {
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: $text-primary;
+          @include truncate;
+        }
+
+        .email {
+          font-size: 0.72rem;
+          color: $text-muted;
+          @include truncate;
+        }
+      }
+    }
+
+    .logout-btn {
+      color: $text-muted;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      @include flex-center;
+      transition: all $transition-base;
+
+      &:hover {
+        color: #EF4444;
+        background: rgba(239, 68, 68, 0.08);
+      }
+    }
+  }
+}
+
+// Main Workspace Layout
+.admin-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  transition: padding-left $transition-base;
+}
+
+// ==========================================
+// HEADER BAR STYLE
+// ==========================================
+.admin-header {
+  height: 70px;
+  padding: 0 $spacing-xl;
+  background: $surface;
+  border-bottom: 1px solid $border-color;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+
+  .header-left-group {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+
+    .hamburger-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid $border-color;
+      background: $bg-main;
+      color: $text-secondary;
+      @include flex-center;
+      cursor: pointer;
+      transition: all $transition-fast;
+
+      &:hover {
+        color: $text-primary;
+        background: $card-hover;
+      }
+    }
+
+    .search-bar {
+      position: relative;
+      width: 280px;
+
+      input {
+        width: 100%;
+        background: $bg-main;
+        border: 1px solid $border-color;
+        border-radius: 10px;
+        padding: 8px 12px 8px 36px;
+        font-size: 0.85rem;
+        color: $text-primary;
+        transition: all $transition-fast;
+
+        &:focus {
+          border-color: #3B82F6;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+      }
+
+      svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $text-muted;
+      }
+    }
+  }
+
+  .header-right-group {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+
+    .notification-bell {
+      position: relative;
+      cursor: pointer;
+      color: $text-secondary;
+      padding: 6px;
+      border-radius: 50%;
+      transition: all $transition-fast;
+
+      &:hover {
+        background: rgba(3, 113, 114, 0.06);
+        color: $primary;
+      }
+
+      .bell-badge {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: $primary;
+        color: #FFFFFF;
+        font-size: 0.65rem;
+        font-weight: 700;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        @include flex-center;
+        border: 2px solid $surface;
+      }
+    }
+
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      color: $text-secondary;
+      @include flex-center;
+      cursor: pointer;
+      transition: all $transition-fast;
+
+      &:hover {
+        background: rgba(3, 113, 114, 0.06);
+        color: $primary;
+      }
+    }
+
+    .admin-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-left: $spacing-md;
+      border-left: 1px solid $border-color;
+
+      .avatar-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: $primary;
+        color: #FFFFFF;
+        font-weight: 700;
+        font-size: 0.85rem;
+        @include flex-center;
+        box-shadow: 0 2px 8px rgba(3, 113, 114, 0.2);
+      }
+
+      .avatar-details {
+        display: flex;
+        flex-direction: column;
+
+        .name {
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: $text-primary;
+        }
+
+        .sub {
+          font-size: 0.7rem;
+          color: $text-muted;
+        }
+      }
+    }
+  }
+}
+
+// Work Area Content Grid
+.admin-content {
+  flex: 1;
+  padding: $spacing-xl;
+  background-color: $bg-main;
+}
+
+// ==========================================
+// DASHBOARD TOP WELCOME CARD ROW
+// ==========================================
+.dashboard-welcome-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-xl;
+
+  .welcome-text {
+    h2 {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: $text-primary;
+      letter-spacing: -0.02em;
+    }
+    p {
+      font-size: 0.85rem;
+      color: $text-muted;
+      margin-top: 4px;
+    }
+  }
+
+  .date-range-badge {
+    background: $surface;
+    border: 1px solid $border-color;
+    padding: 8px 16px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: $text-secondary;
+    cursor: pointer;
+    box-shadow: $shadow-sm;
+    transition: background $transition-fast;
+
+    &:hover {
+      background: $bg-hover;
+    }
+  }
+}
+
+// ==========================================
+// ROW 1: PREMIUM KPI GRID
+// ==========================================
+.kpi-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.dashboard-kpi-card {
+  background: $surface;
+  border: 1px solid $border-color;
+  border-radius: 16px;
+  padding: $spacing-xl $spacing-lg;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all $transition-base;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: $spacing-sm;
+
+    .icon-wrapper {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(3, 113, 114, 0.08) !important;
+      color: #037172 !important;
+      @include flex-center;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: $text-muted;
+      text-transform: capitalize;
+    }
+  }
+
+  .value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: $text-primary;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  .trend {
+    font-size: 0.72rem;
+    font-weight: 600;
+    
+    &.trend-up {
+      color: #22C55E;
+    }
+  }
+}
+
+// ==========================================
+// ROW 2: SPLIT LAYOUT (AREA + DONUT)
+// ==========================================
+.analytics-split-layout {
+  display: grid;
+  grid-template-columns: 2.1fr 1fr;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-panel {
+  background: $surface;
+  border: 1px solid $border-color;
+  border-radius: 16px;
+  padding: $spacing-xl;
+  box-shadow: $shadow-sm;
+  display: flex;
+  flex-direction: column;
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $spacing-lg;
+
+    h3 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: $text-primary;
+    }
+
+    .panel-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: $text-muted;
+
+      .legend-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 5px;
+
+        &.dot-green { background-color: #22C55E; }
+        &.dot-teal { background-color: $secondary; }
+      }
+    }
+
+    .range-dropdown {
+      select {
+        background: $bg-main;
+        border: 1px solid $border-color;
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: $text-secondary;
+        cursor: pointer;
+        outline: none;
+
+        &:focus {
+          border-color: $primary;
+        }
+      }
+    }
+  }
+
+  .chart-wrapper {
+    width: 100%;
+    height: 250px;
+  }
+}
+
+// User Donut Panel Specifics
+.user-distribution-panel {
+  .donut-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-lg;
+    height: 100%;
+  }
+
+  .donut-chart-container {
+    width: 160px;
+    height: 160px;
+    position: relative;
+
+    .donut-labels-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+
+      .total-val {
+        font-size: 1.65rem;
+        font-weight: 800;
+        color: $text-primary;
+        line-height: 1;
+      }
+
+      .label-text {
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: $text-muted;
+        text-transform: uppercase;
+        margin-top: 4px;
+      }
+    }
+  }
+
+  .donut-legend-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .legend-details {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        font-size: 0.78rem;
+
+        .name {
+          color: $text-secondary;
+          font-weight: 500;
+        }
+
+        .count {
+          color: $text-primary;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// ROW 3: DETAILED MINI METRICS (5 COLUMNS)
+// ==========================================
+.detailed-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-xl;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.mini-metric-card {
+  background: $surface;
+  border: 1px solid $border-color;
+  border-radius: 12px;
+  padding: $spacing-md;
+  box-shadow: $shadow-sm;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: rgba(59, 130, 246, 0.15);
+  }
+
+  .icon-wrapper {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    @include flex-center;
+    flex-shrink: 0;
+
+    &.color-purple { background: rgba(168, 85, 247, 0.05); border-color: rgba(168, 85, 247, 0.1); color: #A855F7; }
+    &.color-orange { background: rgba(249, 115, 22, 0.05); border-color: rgba(249, 115, 22, 0.1); color: #F97316; }
+    &.color-blue { background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.1); color: #3B82F6; }
+    &.color-green { background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.1); color: #22C55E; }
+    &.color-teal { background: rgba(14, 165, 164, 0.05); border-color: rgba(14, 165, 164, 0.1); color: #0EA5A4; }
+  }
+
+  .details {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    .title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: $text-muted;
+      letter-spacing: 0.02em;
+    }
+
+    .val {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: $text-primary;
+      margin-top: 2px;
+    }
+
+    .sub {
+      font-size: 0.68rem;
+      color: $text-muted;
+      margin-top: 1px;
+    }
+
+    // Progress bar for API usage
+    .progress-bar-track {
+      width: 100%;
+      height: 4px;
+      background: $border-color;
+      border-radius: 99px;
+      margin-top: 8px;
+      overflow: hidden;
+
+      .progress-bar-fill {
+        height: 100%;
+        background: #3B82F6;
+        border-radius: 99px;
+      }
+    }
+  }
+}
+
+// ==========================================
+// ROW 4: RECENT TABLES (SIDE BY SIDE)
+// ==========================================
+.split-tables-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-table-card {
+  background: $surface;
+  border: 1px solid $border-color;
+  border-radius: 16px;
+  padding: $spacing-xl;
+  box-shadow: $shadow-sm;
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-lg;
+    padding-bottom: $spacing-sm;
+    border-bottom: 1px solid $border-color;
+
+    h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: $text-primary;
+    }
+
+    .view-all-link {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: $primary;
+      cursor: pointer;
+      transition: color $transition-fast;
+
+      &:hover {
+        color: $primary-hover;
+      }
+    }
+  }
+
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .compact-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+
+    th, td {
+      padding: 10px 8px;
+      font-size: 0.78rem;
+    }
+
+    th {
+      font-weight: 700;
+      color: $text-muted;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid $border-color;
+      background: transparent;
+    }
+
+    td {
+      color: $text-secondary;
+      border-bottom: 1px solid $border-color;
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .muted-cell {
+      color: $text-muted;
+    }
+
+    .empty-cell {
+      text-align: center;
+      color: $text-muted;
+      font-style: italic;
+      padding: 24px;
+    }
+  }
+}
+
+.user-profile-cell {
+  display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .avatar-mini, .avatar-small {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(3, 113, 114, 0.08) !important;
+      color: #037172 !important;
+      font-weight: 700;
+      font-size: 0.72rem;
+      @include flex-center;
+      flex-shrink: 0;
+    }
+
+    .name {
+      font-weight: 600;
+      color: $text-primary;
+    }
+  }
+
+  .company-link {
+    color: $primary;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: color $transition-fast;
+
+    &:hover {
+      color: $primary-hover;
+      text-decoration: underline;
+    }
+  }
+
+  .table-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .filter-btn {
+      background: $surface;
+      border: 1px solid $border-color;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: $text-secondary;
+      cursor: pointer;
+      transition: all $transition-fast;
+
+      &:hover {
+        background: rgba(3, 113, 114, 0.05);
+        border-color: rgba(3, 113, 114, 0.2);
+        color: $primary;
+      }
+
+      &.active {
+        background: $primary;
+        border-color: $primary;
+        color: #FFFFFF;
+        box-shadow: 0 2px 6px rgba(3, 113, 114, 0.2);
+      }
+    }
+  }

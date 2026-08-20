@@ -1,0 +1,258 @@
+@import './variables';
+@import './mixins';
+@import './animations';
+
+// ==========================================
+// MAPFLOW AI ADMIN — CSS RESET & FOUNDATIONS
+// ==========================================
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: $font-family;
+}
+
+body {
+  background-color: $bg-main;
+  color: $text-primary;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color $transition-base, color $transition-base;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+// Utility Layout Classes
+.flex { display: flex; }
+.align-center { align-items: center; }
+.justify-center { justify-content: center; }
+.flex-col { flex-direction: column; }
+.gap-sm { gap: $spacing-sm; }
+.gap-md { gap: $spacing-md; }
+.gap-lg { gap: $spacing-lg; }
+
+// Custom Scrollbars for panels
+.custom-scroll {
+  @include custom-scrollbar;
+  overflow-y: auto;
+}
+
+// Dashboard Card Containers
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
+}
+
+.kpi-card {
+  background: $surface;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  box-shadow: $shadow-sm;
+  transition: all $transition-base;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: rgba(14, 165, 164, 0.4);
+    box-shadow: $shadow-md;
+  }
+
+  .icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-md;
+    background: rgba(14, 165, 164, 0.1);
+    color: #0EA5A4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-info {
+    flex: 1;
+
+    h3 {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: $text-muted;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .value {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: $text-primary;
+    }
+  }
+}
+
+// Standard Admin Table Styling
+.table-container {
+  background: $surface;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+  overflow: hidden;
+  margin-top: $spacing-lg;
+}
+
+.table-header-bar {
+  padding: $spacing-lg;
+  border-bottom: 1px solid $border-color;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .search-input-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+
+    input {
+      width: 100%;
+      background: $bg-main;
+      border: 1px solid $border-color;
+      border-radius: $radius-md;
+      padding: 10px 16px 10px 40px;
+      font-size: 0.9rem;
+      color: $text-primary;
+      transition: all $transition-fast;
+
+      &:focus {
+        border-color: #0EA5A4;
+        box-shadow: 0 0 0 2px rgba(14, 165, 164, 0.15);
+      }
+    }
+
+    svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: $text-muted;
+    }
+  }
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+
+  th, td {
+    padding: $spacing-md $spacing-lg;
+    font-size: 0.9rem;
+  }
+
+  th {
+    background: rgba(148, 163, 184, 0.05);
+    font-weight: 600;
+    color: $text-muted;
+    border-bottom: 1px solid $border-color;
+  }
+
+  td {
+    color: $text-secondary;
+    border-bottom: 1px solid $border-color;
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:hover td {
+    background: rgba(148, 163, 184, 0.02);
+  }
+}
+
+// Badges
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: $radius-full;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.success {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22C55E;
+  }
+
+  &.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #F59E0B;
+  }
+
+  &.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+  }
+
+  &.primary {
+    background: rgba(14, 165, 164, 0.1);
+    color: #0EA5A4;
+  }
+
+  // Custom App Theme shades for roles and plans
+  &.role-admin {
+    background: rgba(3, 113, 114, 0.12) !important;
+    color: #037172 !important;
+  }
+
+  &.role-user {
+    background: rgba(14, 165, 164, 0.08) !important;
+    color: #0EA5A4 !important;
+  }
+
+  &.plan-free {
+    background: rgba(14, 165, 164, 0.06) !important;
+    color: #0EA5A4 !important;
+    border: 1px solid rgba(14, 165, 164, 0.15) !important;
+  }
+
+  &.plan-starter {
+    background: rgba(3, 113, 114, 0.05) !important;
+    color: #037172 !important;
+    border: 1px solid rgba(3, 113, 114, 0.2) !important;
+  }
+
+  &.plan-agency_pro {
+    background: #037172 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 6px rgba(3, 113, 114, 0.25) !important;
+    border: none !important;
+  }
+}

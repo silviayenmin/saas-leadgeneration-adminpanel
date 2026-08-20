@@ -1,0 +1,157 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.admin-login-wrapper {
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at top left, rgba(3, 113, 114, 0.15), transparent 40%),
+              radial-gradient(circle at bottom right, rgba(14, 165, 164, 0.1), transparent 40%),
+              #0A0F1C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-lg;
+
+  .login-box {
+    width: 100%;
+    max-width: 420px;
+    background: $surface;
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    padding: $spacing-xl;
+    box-shadow: $shadow-lg;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+  }
+
+  .brand-header {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-xs;
+
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: $radius-md;
+      background: rgba(14, 165, 164, 0.12);
+      color: #0EA5A4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: $spacing-sm;
+      box-shadow: 0 0 16px rgba(14, 165, 164, 0.2);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: $text-primary;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: $text-muted;
+      font-weight: 500;
+    }
+  }
+
+  .error-banner {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #EF4444;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    display: flex;
+    gap: $spacing-sm;
+    align-items: flex-start;
+    font-size: 0.85rem;
+    line-height: 1.4;
+
+    svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: $text-secondary;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .input-with-icon {
+        position: relative;
+        display: flex;
+        align-items: center;
+
+        svg {
+          position: absolute;
+          left: 14px;
+          color: $text-muted;
+          pointer-events: none;
+        }
+
+        input {
+          width: 100%;
+          background: rgba(148, 163, 184, 0.05);
+          border: 1px solid $border-color;
+          border-radius: $radius-md;
+          padding: 12px 14px 12px 42px;
+          font-size: 0.95rem;
+          color: $text-primary;
+          transition: all $transition-fast;
+
+          &:focus {
+            border-color: #0EA5A4;
+            background: rgba(14, 165, 164, 0.02);
+            box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.15);
+          }
+
+          &::placeholder {
+            color: rgba(148, 163, 184, 0.4);
+          }
+        }
+
+        .eye-toggle {
+          position: absolute;
+          right: 14px;
+          color: $text-muted;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          border-radius: 4px;
+
+          &:hover {
+            color: $text-secondary;
+            background: rgba(148, 163, 184, 0.1);
+          }
+        }
+      }
+    }
+
+    .submit-btn {
+      @include gradient-button;
+      padding: 12px;
+      font-size: 0.95rem;
+      margin-top: $spacing-sm;
+    }
+  }
+}

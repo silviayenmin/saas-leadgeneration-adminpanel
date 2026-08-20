@@ -1,0 +1,134 @@
+// ==========================================
+// MAPFLOW AI ADMIN — DESIGN TOKENS & THEMING
+// ==========================================
+
+:root, [data-theme="dark"] {
+  // Layout Surfaces
+  --bg-main: #0A0F1C;
+  --bg-surface: #111827;
+  --bg-card: #182233;
+  --bg-hover: #1E2A3E;
+  --border-color: rgba(148, 163, 184, 0.15);
+
+  // Brand Accents
+  --primary: #037172;
+  --primary-hover: #048A8A;
+  --primary-light: rgba(3, 113, 114, 0.15);
+  --secondary: #0EA5A4;
+  --highlight: #4DA3FF;
+
+  // Typography
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  // Status & Feedback
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  // Surfaces & Glass
+  --glass-bg: rgba(24, 34, 51, 0.75);
+  --glass-border: 1px solid rgba(148, 163, 184, 0.15);
+
+  // Shadows
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(3, 113, 114, 0.35);
+
+  // Gradients
+  --gradient-primary: linear-gradient(135deg, #037172 0%, #0EA5A4 100%);
+  --gradient-secondary: linear-gradient(135deg, #0EA5A4 0%, #22C55E 100%);
+}
+
+[data-theme="light"] {
+  // Layout Surfaces
+  --bg-main: #F5F7FA;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F1F5F9;
+  --border-color: #E2E8F0;
+
+  // Brand Accents
+  --primary: #037172;
+  --primary-hover: #048A8A;
+  --primary-light: rgba(3, 113, 114, 0.08);
+  --secondary: #0EA5A4;
+  --highlight: #3B82F6;
+
+  // Typography
+  --text-primary: #111827;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+
+  // Status & Feedback
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  // Surfaces & Glass
+  --glass-bg: #FFFFFF;
+  --glass-border: 1px solid #E2E8F0;
+
+  // Shadows
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 15px rgba(3, 113, 114, 0.15);
+
+  // Gradients
+  --gradient-primary: linear-gradient(135deg, #037172 0%, #0EA5A4 100%);
+  --gradient-secondary: linear-gradient(135deg, #0EA5A4 0%, #22C55E 100%);
+}
+
+// SCSS Variable Mappings
+$bg-main: var(--bg-main);
+$surface: var(--bg-surface);
+$card: var(--bg-card);
+$card-hover: var(--bg-hover);
+$bg-hover: var(--bg-hover);
+
+$primary: var(--primary);
+$primary-hover: var(--primary-hover);
+$primary-light: var(--primary-light);
+$primary-end: var(--secondary);
+$secondary: var(--secondary);
+$highlight: var(--highlight);
+
+$text-primary: var(--text-primary);
+$text-secondary: var(--text-secondary);
+$text-muted: var(--text-muted);
+$border-color: var(--border-color);
+
+// Font Family
+$font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+// Spacing
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+
+// Border Radius
+$radius-sm: 6px;
+$radius-md: 10px;
+$radius-lg: 14px;
+$radius-full: 9999px;
+
+// Glassmorphism Tokens
+$glass-bg: var(--glass-bg);
+$glass-border: var(--glass-border);
+$glass-blur: blur(12px);
+
+// Shadows
+$shadow-sm: var(--shadow-sm);
+$shadow-md: var(--shadow-md);
+$shadow-lg: var(--shadow-lg);
+$shadow-glow: var(--shadow-glow);
+
+// Transitions
+$transition-fast: 0.15s ease-in-out;
+$transition-base: 0.25s ease-in-out;

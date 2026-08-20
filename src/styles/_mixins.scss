@@ -1,0 +1,107 @@
+@import './variables';
+
+// Glass Card Mixin
+@mixin glass-card {
+  background: $glass-bg;
+  border: $glass-border;
+  backdrop-filter: $glass-blur;
+  -webkit-backdrop-filter: $glass-blur;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+  transition: all $transition-base;
+
+  &:hover {
+    background: $card-hover;
+    border-color: $border-color;
+  }
+}
+
+// Primary Gradient Button Mixin
+@mixin gradient-button {
+  background: linear-gradient(135deg, #037172 0%, #0EA5A4 100%) !important;
+  color: #FFFFFF !important;
+  border: none;
+  border-radius: $radius-md;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all $transition-fast;
+  box-shadow: 0 4px 14px rgba(3, 113, 114, 0.4);
+
+  &:hover {
+    background: linear-gradient(135deg, #025C5D 0%, #0A8B8A 100%) !important;
+    color: #FFFFFF !important;
+    opacity: 0.98;
+    transform: translateY(-1px);
+    box-shadow: $shadow-glow;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+// Flex Center Mixin
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Flex Between Mixin
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Text Truncation Mixin
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Custom Scrollbar Mixin
+@mixin custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(14, 165, 164, 0.35) transparent;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    transition: background 0.2s ease;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: #0EA5A4;
+  }
+
+  [data-theme="light"] & {
+    scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: #0EA5A4;
+    }
+  }
+}
