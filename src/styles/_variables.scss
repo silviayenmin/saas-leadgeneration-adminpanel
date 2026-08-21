@@ -2,47 +2,7 @@
 // MAPFLOW AI ADMIN — DESIGN TOKENS & THEMING
 // ==========================================
 
-:root, [data-theme="dark"] {
-  // Layout Surfaces
-  --bg-main: #0A0F1C;
-  --bg-surface: #111827;
-  --bg-card: #182233;
-  --bg-hover: #1E2A3E;
-  --border-color: rgba(148, 163, 184, 0.15);
-
-  // Brand Accents
-  --primary: #037172;
-  --primary-hover: #048A8A;
-  --primary-light: rgba(3, 113, 114, 0.15);
-  --secondary: #0EA5A4;
-  --highlight: #4DA3FF;
-
-  // Typography
-  --text-primary: #F8FAFC;
-  --text-secondary: #CBD5E1;
-  --text-muted: #94A3B8;
-
-  // Status & Feedback
-  --success: #22C55E;
-  --warning: #F59E0B;
-  --error: #EF4444;
-
-  // Surfaces & Glass
-  --glass-bg: rgba(24, 34, 51, 0.75);
-  --glass-border: 1px solid rgba(148, 163, 184, 0.15);
-
-  // Shadows
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 20px rgba(3, 113, 114, 0.35);
-
-  // Gradients
-  --gradient-primary: linear-gradient(135deg, #037172 0%, #0EA5A4 100%);
-  --gradient-secondary: linear-gradient(135deg, #0EA5A4 0%, #22C55E 100%);
-}
-
-[data-theme="light"] {
+:root, [data-theme="light"] {
   // Layout Surfaces
   --bg-main: #F5F7FA;
   --bg-surface: #FFFFFF;
@@ -76,6 +36,46 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-glow: 0 0 15px rgba(3, 113, 114, 0.15);
+
+  // Gradients
+  --gradient-primary: linear-gradient(135deg, #037172 0%, #0EA5A4 100%);
+  --gradient-secondary: linear-gradient(135deg, #0EA5A4 0%, #22C55E 100%);
+}
+
+[data-theme="dark"] {
+  // Layout Surfaces
+  --bg-main: #0A0F1C;
+  --bg-surface: #111827;
+  --bg-card: #182233;
+  --bg-hover: #1E2A3E;
+  --border-color: rgba(148, 163, 184, 0.15);
+
+  // Brand Accents
+  --primary: #037172;
+  --primary-hover: #048A8A;
+  --primary-light: rgba(3, 113, 114, 0.15);
+  --secondary: #0EA5A4;
+  --highlight: #4DA3FF;
+
+  // Typography
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+
+  // Status & Feedback
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --error: #EF4444;
+
+  // Surfaces & Glass
+  --glass-bg: rgba(24, 34, 51, 0.75);
+  --glass-border: 1px solid rgba(148, 163, 184, 0.15);
+
+  // Shadows
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(3, 113, 114, 0.35);
 
   // Gradients
   --gradient-primary: linear-gradient(135deg, #037172 0%, #0EA5A4 100%);

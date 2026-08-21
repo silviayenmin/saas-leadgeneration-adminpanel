@@ -49,8 +49,8 @@ function App() {
       <div style={{ 
         display: 'flex', 
         height: '100vh', 
-        background: '#0A0F1C', 
-        color: '#F8FAFC', 
+        background: '#F5F7FA', 
+        color: '#111827', 
         alignItems: 'center', 
         justifyContent: 'center',
         flexDirection: 'column',

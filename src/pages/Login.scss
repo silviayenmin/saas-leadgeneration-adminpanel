@@ -4,9 +4,9 @@
 .admin-login-wrapper {
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at top left, rgba(3, 113, 114, 0.15), transparent 40%),
-              radial-gradient(circle at bottom right, rgba(14, 165, 164, 0.1), transparent 40%),
-              #0A0F1C;
+  background: radial-gradient(circle at top left, rgba(3, 113, 114, 0.08), transparent 45%),
+              radial-gradient(circle at bottom right, rgba(14, 165, 164, 0.05), transparent 45%),
+              $bg-main;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -100,7 +100,7 @@
         display: flex;
         align-items: center;
 
-        svg {
+        & > svg {
           position: absolute;
           left: 14px;
           color: $text-muted;
@@ -152,6 +152,14 @@
       padding: 12px;
       font-size: 0.95rem;
       margin-top: $spacing-sm;
+    }
+
+    .back-link-btn {
+      transition: color 0.15s ease, opacity 0.15s ease;
+      &:hover {
+        color: #0ea5a4 !important;
+        opacity: 0.9;
+      }
     }
   }
 }
