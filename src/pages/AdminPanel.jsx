@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
-  ShieldAlert, 
+  AlertTriangle, 
   MapPin, 
   Trash2, 
   Key, 
@@ -29,7 +29,12 @@ import {
    Percent,
    Code,
    Sparkles,
-   CreditCard
+   CreditCard,
+   Edit2,
+   Tag,
+   Star,
+   Info,
+   Plus
  } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -47,9 +52,67 @@ import {
 import api from '../services/api';
 import './AdminPanel.scss';
 
+const enrichUserWithMockDetails = (u) => {
+  // Map role
+  const mappedRole = u.role === 'admin' ? 'ADMIN' : (u.role === 'editor' ? 'EDITOR' : 'MEMBER');
+  
+  // Status: ACTIVE or SUSPENDED
+  const mappedStatus = u.status || 'ACTIVE'; 
+  
+  // Define default mock fields
+  const mockPhone = u.phone || `+1 (555) 019-${1000 + Math.floor(Math.random() * 8999)}`;
+  const mockJoinDate = u.createdAt ? new Date(u.createdAt).toLocaleDateString() : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString();
+  
+  // Mock Payment Details (80% card linked status by default)
+  const hasCard = u.hasCardAttached !== undefined ? u.hasCardAttached : (Math.random() > 0.2);
+  const mockCardDetails = hasCard ? {
+    cardBrand: Math.random() > 0.5 ? 'Visa' : 'Mastercard',
+    last4: `${1000 + Math.floor(Math.random() * 9000)}`,
+    expiry: `${1 + Math.floor(Math.random() * 11)}/28`,
+    billingEmail: u.email || 'billing@example.com'
+  } : null;
+
+  const mockPlanName = u.plan === 'STARTER' ? 'Pro' : (u.plan === 'AGENCY_PRO' ? 'Enterprise' : 'Free');
+  const mockPlanAmount = u.plan === 'STARTER' ? '$29 / mo' : (u.plan === 'AGENCY_PRO' ? '$99 / mo' : '$0');
+  const mockRenewalDate = u.resetDate && u.resetDate !== 'N/A' ? u.resetDate : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString();
+
+  const mockCompany = u.companyName && u.companyName !== 'N/A' ? u.companyName : `${u.fullName?.split(' ')[0] || 'User'} Corp`;
+  const mockWebsite = u.companyWebsite && u.companyWebsite !== 'N/A' ? u.companyWebsite : `https://${mockCompany.toLowerCase().replace(/[^a-z0-9]/g, '') || 'company'}.com`;
+  const mockIndustry = Math.random() > 0.5 ? 'Tech SaaS' : 'Marketing & Sales';
+  const mockCompanySize = Math.random() > 0.5 ? '11-50 employees' : '1-10 employees';
+
+  return {
+    ...u,
+    name: u.fullName || 'User',
+    phone: mockPhone,
+    role: mappedRole,
+    joinDate: mockJoinDate,
+    status: mappedStatus,
+    paymentMethod: mockCardDetails,
+    company: {
+      name: mockCompany,
+      website: mockWebsite,
+      industry: mockIndustry,
+      size: mockCompanySize
+    },
+    subscription: {
+      planName: mockPlanName,
+      status: 'ACTIVE',
+      amount: mockPlanAmount,
+      renewalDate: mockRenewalDate
+    },
+    recentActivity: u.recentActivity || [
+      { id: '1', action: 'Logged In', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toLocaleString() },
+      { id: '2', action: 'API Key Created', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toLocaleString() },
+      { id: '3', action: 'Updated Lead Config', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toLocaleString() }
+    ]
+  };
+};
+
 const AdminPanel = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'users', 'scans'
-  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'user', 'admin'
+  const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'ADMIN', 'EDITOR', 'MEMBER'
+  const [verificationFilter, setVerificationFilter] = useState('all'); // 'all', 'PENDING', 'VERIFIED', 'REJECTED'
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -69,10 +132,39 @@ const AdminPanel = ({ user, onLogout }) => {
   const [scanSearch, setScanSearch] = useState('');
   const [chartRange, setChartRange] = useState('daily'); // 'daily', 'weekly', 'annual'
   
+  // State variables for detailed modal, rejection reasoning, and pagination
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activityFilter, setActivityFilter] = useState('all'); // 'all', 'Logged In', 'API Key Created', 'Updated Lead Config'
+  const [activityPage, setActivityPage] = useState(1);
+
+  // Global pricing plans management states
+  const [plansList, setPlansList] = useState([]);
+  const [subTab, setSubTab] = useState('subscribers'); // 'subscribers', 'plans'
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  
+  // Plan form states
+  const [planSlug, setPlanSlug] = useState('');
+  const [planName, setPlanName] = useState('');
+  const [planAmount, setPlanAmount] = useState('');
+  const [planCreditLimit, setPlanCreditLimit] = useState(25);
+  const [planFeaturesText, setPlanFeaturesText] = useState('');
+  const [planIsPopular, setPlanIsPopular] = useState(false);
+  const [planBadge, setPlanBadge] = useState('');
+
   // Theme state
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('mapflow_admin_theme') || 'light';
   });
+
+  useEffect(() => {
+    if (selectedUser) {
+      console.log("SELECTED USER OBJ:", selectedUser);
+    }
+  }, [selectedUser]);
 
   // Credit Adjustment Modal State
   const [selectedUserForCredits, setSelectedUserForCredits] = useState(null);
@@ -140,7 +232,8 @@ const AdminPanel = ({ user, onLogout }) => {
     try {
       const res = await api.get(`/admin/users?_t=${Date.now()}`);
       if (res.data.success) {
-        setUsersList(res.data.data);
+        const enriched = res.data.data.map(u => enrichUserWithMockDetails(u));
+        setUsersList(enriched);
       }
     } catch (err) {
       console.error('Failed to load users:', err);
@@ -158,9 +251,20 @@ const AdminPanel = ({ user, onLogout }) => {
     }
   };
 
+  const fetchPlans = async () => {
+    try {
+      const res = await api.get(`/admin/plans?_t=${Date.now()}`);
+      if (res.data.success) {
+        setPlansList(res.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to load pricing plans:', err);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchStats(), fetchUsers(), fetchScans()]);
+    await Promise.all([fetchStats(), fetchUsers(), fetchScans(), fetchPlans()]);
     setLoading(false);
   };
 
@@ -176,6 +280,255 @@ const AdminPanel = ({ user, onLogout }) => {
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
+  // Detailed User Verification & Status Actions
+  const updateVerificationStatus = (userId, status, reason = '') => {
+    setUsersList(prev => prev.map(u => {
+      if (u.id === userId) {
+        const updated = {
+          ...u,
+          profile: {
+            ...u.profile,
+            verificationStatus: status,
+            rejectionReason: reason
+          }
+        };
+        if (selectedUser && selectedUser.id === userId) {
+          setSelectedUser(updated);
+        }
+        return updated;
+      }
+      return u;
+    }));
+    setSuccessMsg(`Verification status updated to ${status}.`);
+  };
+
+  const updateUserRole = async (userId, newRole) => {
+    try {
+      const backendRole = newRole.toLowerCase() === 'admin' ? 'admin' : 'user';
+      const res = await api.put(`/admin/users/${userId}/role`, { role: backendRole });
+      if (res.data.success) {
+        setUsersList(prev => prev.map(u => {
+          if (u.id === userId) {
+            const updated = { ...u, role: newRole };
+            if (selectedUser && selectedUser.id === userId) {
+              setSelectedUser(updated);
+            }
+            return updated;
+          }
+          return u;
+        }));
+        setSuccessMsg(`User role updated to ${newRole} successfully.`);
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.detail || 'Failed to update user role.');
+    }
+  };
+
+  const toggleUserStatus = (userId) => {
+    let nextStatus = 'ACTIVE';
+    setUsersList(prev => prev.map(u => {
+      if (u.id === userId) {
+        nextStatus = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+        const updated = { ...u, status: nextStatus };
+        if (selectedUser && selectedUser.id === userId) {
+          setSelectedUser(updated);
+        }
+        return updated;
+      }
+      return u;
+    }));
+    setSuccessMsg(`User successfully ${nextStatus === 'ACTIVE' ? 'activated' : 'suspended'}.`);
+  };
+
+  const handleTogglePaymentCard = async () => {
+    if (!selectedUser) return;
+    try {
+      const hasCardNow = !!selectedUser.paymentMethod;
+      const nextCard = hasCardNow ? null : {
+        cardBrand: Math.random() > 0.5 ? 'Visa' : 'Mastercard',
+        last4: `${1000 + Math.floor(Math.random() * 9000)}`,
+        expiry: `${1 + Math.floor(Math.random() * 11)}/28`,
+        billingEmail: selectedUser.email
+      };
+
+      const payload = {
+        hasCardAttached: !hasCardNow,
+        cardBrand: nextCard ? nextCard.cardBrand : null,
+        cardLast4: nextCard ? nextCard.last4 : null,
+        cardExpiry: nextCard ? nextCard.expiry : null
+      };
+
+      const res = await api.put(`/admin/users/${selectedUser.id}/payment-method`, payload);
+      if (res.data.success) {
+        setSuccessMsg(hasCardNow ? 'Credit card details removed.' : 'Mock card details linked to user profile.');
+        // Update local state instantly
+        const updatedUser = {
+          ...selectedUser,
+          paymentMethod: nextCard,
+          hasCardAttached: !hasCardNow,
+          cardBrand: nextCard ? nextCard.cardBrand : null,
+          cardLast4: nextCard ? nextCard.last4 : null,
+          cardExpiry: nextCard ? nextCard.expiry : null
+        };
+        setSelectedUser(updatedUser);
+        // Refresh users list from database
+        fetchUsers();
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.detail || 'Failed to update user payment profile.');
+    }
+  };
+
+  const handleUpgradePlan = async () => {
+    if (!selectedUser) return;
+    try {
+      const nextResetDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString();
+      const payload = {
+        plan: 'STARTER',
+        creditLimit: 500,
+        resetDate: nextResetDate
+      };
+
+      const res = await api.put(`/admin/users/${selectedUser.id}/subscription`, payload);
+      if (res.data.success) {
+        setSuccessMsg(`User ${selectedUser.name} upgraded to Pro tier successfully.`);
+        // Update local state instantly
+        const updatedUser = {
+          ...selectedUser,
+          plan: 'STARTER',
+          creditLimit: 500,
+          subscription: {
+            ...selectedUser.subscription,
+            planName: 'Pro',
+            amount: '$29 / mo',
+            renewalDate: nextResetDate
+          }
+        };
+        setSelectedUser(updatedUser);
+        // Refresh tables and stats
+        fetchUsers();
+        fetchStats();
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.detail || 'Failed to upgrade user subscription.');
+    }
+  };
+
+  const handleCancelPlan = async () => {
+    if (!selectedUser) return;
+    const confirmMsg = `Are you sure you want to cancel the subscription plan for ${selectedUser.name}?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const payload = {
+        plan: 'FREE',
+        creditLimit: 25,
+        resetDate: 'N/A'
+      };
+
+      const res = await api.put(`/admin/users/${selectedUser.id}/subscription`, payload);
+      if (res.data.success) {
+        setSuccessMsg(`Subscription cancelled. User downgraded to Free tier.`);
+        // Update local state instantly
+        const updatedUser = {
+          ...selectedUser,
+          plan: 'FREE',
+          creditLimit: 25,
+          subscription: {
+            ...selectedUser.subscription,
+            planName: 'Free',
+            amount: '$0',
+            renewalDate: 'N/A'
+          }
+        };
+        setSelectedUser(updatedUser);
+        // Refresh tables and stats
+        fetchUsers();
+        fetchStats();
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.detail || 'Failed to cancel user subscription.');
+    }
+  };
+
+  // Pricing Plans Configuration Actions
+  const handleOpenCreatePlanModal = () => {
+    setEditingPlan(null);
+    setPlanSlug('');
+    setPlanName('');
+    setPlanAmount('');
+    setPlanCreditLimit(25);
+    setPlanFeaturesText('');
+    setPlanIsPopular(false);
+    setPlanBadge('');
+    setIsPlanModalOpen(true);
+  };
+
+  const handleOpenEditPlanModal = (plan) => {
+    setEditingPlan(plan);
+    setPlanSlug(plan.id);
+    setPlanName(plan.planName);
+    setPlanAmount(plan.amount);
+    setPlanCreditLimit(plan.creditLimit);
+    setPlanFeaturesText(plan.features ? plan.features.join(', ') : '');
+    setPlanIsPopular(!!plan.isPopular);
+    setPlanBadge(plan.badge || '');
+    setIsPlanModalOpen(true);
+  };
+
+  const handleSavePlan = async (e) => {
+    e.preventDefault();
+    if (!planSlug.trim() || !planName.trim() || !planAmount.trim()) {
+      setErrorMsg('Please fill in all required fields.');
+      return;
+    }
+
+    const payload = {
+      id: planSlug.trim().toLowerCase(),
+      planName: planName.trim(),
+      amount: planAmount.trim(),
+      creditLimit: parseInt(planCreditLimit, 10) || 25,
+      features: planFeaturesText.split(',').map(f => f.trim()).filter(Boolean),
+      isPopular: !!planIsPopular,
+      badge: planBadge.trim()
+    };
+
+    try {
+      if (editingPlan) {
+        const res = await api.put(`/admin/plans/${editingPlan.id}`, payload);
+        if (res.data.success) {
+          setSuccessMsg(`Pricing plan '${planName}' updated successfully.`);
+          fetchPlans();
+          setIsPlanModalOpen(false);
+        }
+      } else {
+        const res = await api.post('/admin/plans', payload);
+        if (res.data.success) {
+          setSuccessMsg(`Pricing plan '${planName}' created successfully.`);
+          fetchPlans();
+          setIsPlanModalOpen(false);
+        }
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.detail || 'Failed to save pricing plan.');
+    }
+  };
+
+  const handleDeletePlan = async (plan) => {
+    const confirmMsg = `Are you sure you want to delete the pricing plan '${plan.planName}'? This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await api.delete(`/admin/plans/${plan.id}`);
+      if (res.data.success) {
+        setSuccessMsg(`Pricing plan '${plan.planName}' deleted successfully.`);
+        fetchPlans();
+      }
+    } catch (err) {
+      setErrorMsg(err.response?.data?.detail || 'Failed to delete pricing plan.');
+    }
   };
 
   // Admin Actions
@@ -252,25 +605,74 @@ const AdminPanel = ({ user, onLogout }) => {
     }
   }, [errorMsg]);
 
-  // Search & Role filters
-  const filteredUsers = usersList.filter(u => 
-    u.fullName?.toLowerCase().includes(userSearch.toLowerCase()) ||
-    u.email?.toLowerCase().includes(userSearch.toLowerCase())
-  );
+  // Search, Role, and Verification filters for User Directory
+  const filteredUsersForDirectory = usersList.filter(u => {
+    const nameMatch = u.name?.toLowerCase().includes(userSearch.toLowerCase()) || false;
+    const emailMatch = u.email?.toLowerCase().includes(userSearch.toLowerCase()) || false;
+    const phoneMatch = u.phone?.toLowerCase().includes(userSearch.toLowerCase()) || false;
+    const searchMatch = !userSearch || nameMatch || emailMatch || phoneMatch;
 
-  const filteredUsersForDirectory = filteredUsers.filter(u => 
-    roleFilter === 'all' ? true : u.role === roleFilter
-  );
+    const roleMatch = roleFilter === 'all' || u.role === roleFilter;
+    const verificationMatch = verificationFilter === 'all' || 
+      (verificationFilter === 'LINKED' && u.paymentMethod !== null) ||
+      (verificationFilter === 'UNLINKED' && u.paymentMethod === null);
 
-  const filteredUsersForSubscriptions = filteredUsers.filter(u => 
-    u.role === 'user'
-  );
+    return searchMatch && roleMatch && verificationMatch;
+  });
+
+  const filteredUsersForSubscriptions = usersList.filter(u => {
+    const isBasicUser = u.role === 'MEMBER' || u.role === 'EDITOR' || u.role === 'user' || u.role === 'MEMBER';
+    const nameMatch = u.name?.toLowerCase().includes(userSearch.toLowerCase()) || false;
+    const emailMatch = u.email?.toLowerCase().includes(userSearch.toLowerCase()) || false;
+    const searchMatch = !userSearch || nameMatch || emailMatch;
+    return isBasicUser && searchMatch;
+  });
 
   const filteredScans = scansList.filter(s => 
     s.keyword?.toLowerCase().includes(scanSearch.toLowerCase()) ||
     s.location?.toLowerCase().includes(scanSearch.toLowerCase()) ||
     s.userEmail?.toLowerCase().includes(scanSearch.toLowerCase())
   );
+
+  // Aggregate and filter global activity logs
+  const allActivityLogs = usersList.flatMap(u => 
+    (u.recentActivity || []).map(act => ({
+      ...act,
+      userId: u.id,
+      userName: u.name,
+      userEmail: u.email
+    }))
+  ).sort((a, b) => {
+    try {
+      const parseDate = (ts) => {
+        const parts = ts.split(', ');
+        if (parts.length === 2) {
+          const dateParts = parts[0].split('/');
+          if (dateParts.length === 3) {
+            return new Date(`${dateParts[2]}-${dateParts[1]}-${dateParts[0]} ${parts[1]}`);
+          }
+        }
+        return new Date(ts);
+      };
+      return parseDate(b.timestamp) - parseDate(a.timestamp);
+    } catch (e) {
+      return b.id - a.id;
+    }
+  });
+
+  const filteredActivityLogs = allActivityLogs.filter(log => {
+    const searchString = userSearch.toLowerCase();
+    const nameMatch = log.userName?.toLowerCase().includes(searchString) || false;
+    const emailMatch = log.userEmail?.toLowerCase().includes(searchString) || false;
+    const actionMatch = log.action?.toLowerCase().includes(searchString) || false;
+    const ipMatch = log.ipAddress?.toLowerCase().includes(searchString) || false;
+    const deviceMatch = log.device?.toLowerCase().includes(searchString) || false;
+    const matchesSearch = !userSearch || nameMatch || emailMatch || actionMatch || ipMatch || deviceMatch;
+
+    const matchesActionFilter = activityFilter === 'all' || log.action === activityFilter;
+
+    return matchesSearch && matchesActionFilter;
+  });
 
   return (
     <div className="admin-dashboard-container">
@@ -312,12 +714,25 @@ const AdminPanel = ({ user, onLogout }) => {
             <span>Subscriptions</span>
           </button>
 
+          {/* Hiding Platform Scans page for now
           <button 
             className={`nav-item ${activeTab === 'scans' ? 'active' : ''}`}
             onClick={() => setActiveTab('scans')}
           >
             <MapPin size={18} />
             <span>Platform Scans</span>
+          </button>
+          */}
+
+          <button 
+            className={`nav-item ${activeTab === 'activity' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('activity');
+              setActivityPage(1);
+            }}
+          >
+            <Clock size={18} />
+            <span>Activity Logs</span>
           </button>
         </nav>
 
@@ -345,10 +760,10 @@ const AdminPanel = ({ user, onLogout }) => {
               <Search size={16} />
               <input 
                 type="text" 
-                placeholder="Search users, leads, scans..." 
-                value={activeTab === 'users' || activeTab === 'subscriptions' ? userSearch : (activeTab === 'scans' ? scanSearch : '')}
+                placeholder="Search users, leads, scans, logs..." 
+                value={activeTab === 'users' || activeTab === 'subscriptions' || activeTab === 'activity' ? userSearch : (activeTab === 'scans' ? scanSearch : '')}
                 onChange={(e) => {
-                  if (activeTab === 'users' || activeTab === 'subscriptions') setUserSearch(e.target.value);
+                  if (activeTab === 'users' || activeTab === 'subscriptions' || activeTab === 'activity') setUserSearch(e.target.value);
                   if (activeTab === 'scans') setScanSearch(e.target.value);
                 }}
               />
@@ -714,183 +1129,364 @@ const AdminPanel = ({ user, onLogout }) => {
 
                 </div>
               )}
+              {/* TAB 2: USERS LIST (USER DIRECTORY) */}
+              {activeTab === 'users' && (() => {
+                const itemsPerPage = 6;
+                const totalUsersCount = filteredUsersForDirectory.length;
+                const totalPages = Math.ceil(totalUsersCount / itemsPerPage) || 1;
+                
+                // Adjust current page if filters change and make count less
+                const activePage = currentPage > totalPages ? totalPages : currentPage;
+                
+                const startIndex = totalUsersCount === 0 ? 0 : (activePage - 1) * itemsPerPage + 1;
+                const endIndex = Math.min(activePage * itemsPerPage, totalUsersCount);
+                const paginatedUsers = filteredUsersForDirectory.slice(
+                  (activePage - 1) * itemsPerPage,
+                  activePage * itemsPerPage
+                );
 
-              {/* TAB 2: USERS LIST */}
-              {activeTab === 'users' && (
-                <div className="tab-pane animate-fade-in">
-                  <div className="table-container">
-                    <div className="table-header-bar">
-                      <h2>User Accounts ({filteredUsersForDirectory.length})</h2>
-                      <div className="table-header-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div className="table-filters">
-                          <button className={`filter-btn ${roleFilter === 'all' ? 'active' : ''}`} onClick={() => setRoleFilter('all')}>All</button>
-                          <button className={`filter-btn ${roleFilter === 'user' ? 'active' : ''}`} onClick={() => setRoleFilter('user')}>Users</button>
-                          <button className={`filter-btn ${roleFilter === 'admin' ? 'active' : ''}`} onClick={() => setRoleFilter('admin')}>Admins</button>
-                        </div>
+                return (
+                  <div className="tab-pane animate-fade-in user-directory-pane">
+                    
+                    {/* Header Section */}
+                    <div className="directory-header-row">
+                      <div className="header-title-group">
+                        <h2>Users</h2>
+                        <p className="subtitle">Manage and track user accounts, billing profiles, and activity logs</p>
+                      </div>
+                    </div>
+
+                    <div className="table-container">
+                      {/* Controls & Filters */}
+                      <div className="directory-controls-bar">
                         <div className="search-input-wrapper">
                           <Search size={16} />
                           <input 
                             type="text" 
-                            placeholder="Search users by name or email..."
+                            placeholder="Search globally by name, email, or phone..."
                             value={userSearch}
-                            onChange={(e) => setUserSearch(e.target.value)}
+                            onChange={(e) => {
+                              setUserSearch(e.target.value);
+                              setCurrentPage(1); // Reset page on search
+                            }}
                           />
                         </div>
-                      </div>
-                    </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                      <table className="admin-table">
-                        <thead>
-                          <tr>
-                            <th>User Profile</th>
-                            <th>Email Address</th>
-                            <th>Company Name</th>
-                            <th>Company URL</th>
-                            <th>Account Role</th>
-                            <th>Email Verified</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredUsersForDirectory.length > 0 ? (
-                            filteredUsersForDirectory.map(u => (
-                              <tr key={u.id}>
-                                <td>
-                                  <div className="user-profile-cell">
-                                    <div className="avatar-small">{u.fullName?.charAt(0) || 'U'}</div>
-                                    <span className="name">{u.fullName}</span>
-                                  </div>
-                                </td>
-                                <td>{u.email}</td>
-                                <td style={{ fontWeight: '500', color: '#1E293B' }}>{u.companyName || 'N/A'}</td>
-                                <td>
-                                  {u.companyWebsite && u.companyWebsite !== 'N/A' ? (
-                                    <a 
-                                      href={u.companyWebsite.startsWith('http') ? u.companyWebsite : `https://${u.companyWebsite}`}
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="company-link"
-                                    >
-                                      {u.companyWebsite}
-                                    </a>
-                                  ) : (
-                                    <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>N/A</span>
-                                  )}
-                                </td>
-                                <td>
-                                  <span className={`badge role-${u.role}`}>
-                                    {u.role.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`badge ${u.isVerified ? 'success' : 'warning'}`}>
-                                    {u.isVerified ? 'VERIFIED' : 'PENDING'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
+                        <div className="filters-group-row">
+                          <div className="filter-dropdown-wrapper">
+                            <select 
+                              id="verify-filter"
+                              value={verificationFilter} 
+                              onChange={(e) => {
+                                setVerificationFilter(e.target.value);
+                                setCurrentPage(1); // Reset page
+                              }}
+                            >
+                              <option value="all">All Payment States</option>
+                              <option value="LINKED">Card Linked</option>
+                              <option value="UNLINKED">No Card Linked</option>
+                            </select>
+                          </div>
+
+                          <div className="filter-dropdown-wrapper">
+                            <select 
+                              id="role-filter"
+                              value={roleFilter} 
+                              onChange={(e) => {
+                                setRoleFilter(e.target.value);
+                                setCurrentPage(1); // Reset page
+                              }}
+                            >
+                              <option value="all">All Roles</option>
+                              <option value="ADMIN">Admin</option>
+                              <option value="EDITOR">Editor</option>
+                              <option value="MEMBER">Member</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* User Directory Table */}
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="admin-table interactive-table">
+                          <thead>
                             <tr>
-                              <td colSpan="6" className="empty-table">No users match the search query.</td>
+                              <th>User</th>
+                              <th>Phone</th>
+                              <th>Role</th>
+                              <th>Join Date</th>
+                              <th>Status</th>
+                              <th>Payment Status</th>
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {paginatedUsers.length > 0 ? (
+                              paginatedUsers.map(u => (
+                                <tr 
+                                  key={u.id} 
+                                  onClick={() => setSelectedUser(u)} 
+                                  className="clickable-row"
+                                >
+                                  <td>
+                                    <div className="user-profile-cell">
+                                      <div className="avatar-small">{u.name?.charAt(0).toUpperCase() || 'U'}</div>
+                                      <div className="user-info-text">
+                                        <span className="name">{u.name}</span>
+                                        <span className="email">{u.email}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td>{u.phone}</td>
+                                  <td>
+                                    <span className={`badge role-${u.role.toLowerCase()}`}>
+                                      {u.role}
+                                    </span>
+                                  </td>
+                                  <td>{u.joinDate}</td>
+                                  <td>
+                                    <span className={`badge status-${u.status.toLowerCase()}`}>
+                                      {u.status}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    {u.paymentMethod ? (
+                                      <span className="badge verification-verified" style={{ fontSize: '0.78rem', textTransform: 'none' }}>
+                                        {u.paymentMethod.cardBrand} •••• {u.paymentMethod.last4}
+                                      </span>
+                                    ) : (
+                                      <span className="badge verification-rejected" style={{ fontSize: '0.78rem' }}>
+                                        No Card
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="6" className="empty-table">No users found matching the selected filters.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Clean Pagination Controls */}
+                      <div className="pagination-bar">
+                        <div className="pagination-info">
+                          Showing {startIndex} to {endIndex} of {totalUsersCount} users
+                        </div>
+                        <div className="pagination-buttons">
+                          <button 
+                            className="pagination-btn"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={activePage === 1}
+                          >
+                            Previous
+                          </button>
+                          <span className="page-indicator">
+                            Page {activePage} of {totalPages}
+                          </span>
+                          <button 
+                            className="pagination-btn"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={activePage === totalPages}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
-                </div>
-              )}
-
+                );
+              })()}
               {/* TAB 3: SUBSCRIPTIONS */}
               {activeTab === 'subscriptions' && (
                 <div className="tab-pane animate-fade-in">
                   <div className="table-container">
-                    <div className="table-header-bar">
-                      <h2>User Subscriptions & Usage ({filteredUsersForSubscriptions.length})</h2>
-                      <div className="search-input-wrapper">
-                        <Search size={16} />
-                        <input 
-                          type="text" 
-                          placeholder="Search subscriptions by name or email..."
-                          value={userSearch}
-                          onChange={(e) => setUserSearch(e.target.value)}
-                        />
+                    <div className="table-header-bar subscription-header-bar">
+                      <div className="header-tabs-group">
+                        <button 
+                          className={`sub-tab-btn ${subTab === 'subscribers' ? 'active' : ''}`}
+                          onClick={() => setSubTab('subscribers')}
+                        >
+                          Active Subscribers ({filteredUsersForSubscriptions.length})
+                        </button>
+                        <button 
+                          className={`sub-tab-btn ${subTab === 'plans' ? 'active' : ''}`}
+                          onClick={() => setSubTab('plans')}
+                        >
+                          Pricing Plans Config ({plansList.length})
+                        </button>
                       </div>
+
+                      {subTab === 'subscribers' ? (
+                        <div className="search-input-wrapper">
+                          <Search size={16} />
+                          <input 
+                            type="text" 
+                            placeholder="Search subscriptions by name or email..."
+                            value={userSearch}
+                            onChange={(e) => setUserSearch(e.target.value)}
+                          />
+                        </div>
+                      ) : (
+                        <button className="add-plan-btn" onClick={handleOpenCreatePlanModal}>
+                          + Create Custom Tier
+                        </button>
+                      )}
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
-                      <table className="admin-table">
-                        <thead>
-                          <tr>
-                            <th>User Profile</th>
-                            <th>Active Plan</th>
-                            <th>Limit / Used</th>
-                            <th>Billing Cycle / Reset</th>
-                            <th style={{ textAlign: 'right' }}>Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredUsersForSubscriptions.length > 0 ? (
-                            filteredUsersForSubscriptions.map(u => (
-                              <tr key={u.id}>
-                                <td>
-                                  <div className="user-profile-cell">
-                                    <div className="avatar-small">{u.fullName?.charAt(0) || 'U'}</div>
-                                    <span className="name">{u.fullName}</span>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className={`badge plan-${(u.plan || 'FREE').toLowerCase()}`}>
-                                    {u.plan ? u.plan.replace('_', ' ') : 'FREE'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div className="credits-display">
-                                    <span className="limit">{u.creditLimit} L</span>
-                                    <span className="divider">/</span>
-                                    <span className="used">{u.creditsUsed} U</span>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span style={{ fontWeight: '500', color: '#64748B', fontSize: '0.85rem' }}>
-                                    {u.resetDate && u.resetDate !== 'N/A' ? `Reset: ${u.resetDate}` : 'N/A'}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div className="actions-cell">
-                                    <button 
-                                      className="action-btn key-btn" 
-                                      title="Adjust User Credits"
-                                      onClick={() => handleOpenCreditModal(u)}
-                                    >
-                                      <Key size={14} />
-                                    </button>
-                                    <button 
-                                      className={`action-btn role-btn ${u.role === 'admin' ? 'is-admin' : ''}`}
-                                      title="Toggle User/Admin Role"
-                                      onClick={() => handleToggleRole(u)}
-                                    >
-                                      <UserCheck size={14} />
-                                    </button>
-                                    <button 
-                                      className="action-btn delete-btn" 
-                                      title="Cascade Delete User"
-                                      onClick={() => handleDeleteUser(u)}
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
+                    {subTab === 'subscribers' ? (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="admin-table">
+                          <thead>
                             <tr>
-                              <td colSpan="5" className="empty-table">No subscriptions found.</td>
+                              <th>User Profile</th>
+                              <th>Active Plan</th>
+                              <th>Monthly Cost</th>
+                              <th>Credits Usage</th>
+                              <th>Next Renewal</th>
+                              <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {filteredUsersForSubscriptions.length > 0 ? (
+                              filteredUsersForSubscriptions.map(u => (
+                                <tr key={u.id}>
+                                  <td>
+                                    <div className="user-profile-cell">
+                                      <div className="avatar-small">{u.fullName?.charAt(0) || 'U'}</div>
+                                      <div className="user-info-text">
+                                        <span className="name">{u.fullName}</span>
+                                        <span className="email">{u.email}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <span className={`badge plan-${(u.plan || 'FREE').toLowerCase()}`}>
+                                      {u.plan ? u.plan.replace('_', ' ') : 'FREE'}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span className="billing-amount-cell">
+                                      {u.subscription?.amount || (u.plan === 'STARTER' ? '$29 / mo' : (u.plan === 'AGENCY_PRO' ? '$149 / mo' : '$0'))}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <div className="table-credits-usage">
+                                      <div className="usage-numbers">
+                                        <strong>{u.creditsUsed || 0}</strong> <span className="muted">/ {u.creditLimit || 25} Credits</span>
+                                      </div>
+                                      {(() => {
+                                        const pct = Math.min(100, Math.max(0, Math.round(((u.creditsUsed || 0) / (u.creditLimit || 25)) * 100)));
+                                        return (
+                                          <div className="mini-progress-bar-track">
+                                            <div 
+                                              className={`mini-progress-bar-fill ${pct > 85 ? 'fill-danger' : (pct > 60 ? 'fill-warning' : 'fill-safe')}`} 
+                                              style={{ width: `${pct}%` }}
+                                            ></div>
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="renewal-date-cell">
+                                      <span className="date-text">{u.resetDate && u.resetDate !== 'N/A' ? u.resetDate : 'N/A'}</span>
+                                      <span className="interval-text">Monthly billing</span>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div className="actions-cell">
+                                      <button 
+                                        className="action-btn key-btn" 
+                                        title="Adjust User Credits"
+                                        onClick={() => handleOpenCreditModal(u)}
+                                      >
+                                        <Key size={14} />
+                                      </button>
+                                      <button 
+                                        className={`action-btn role-btn ${u.role === 'admin' ? 'is-admin' : ''}`}
+                                        title="Toggle User/Admin Role"
+                                        onClick={() => handleToggleRole(u)}
+                                      >
+                                        <UserCheck size={14} />
+                                      </button>
+                                      <button 
+                                        className="action-btn delete-btn" 
+                                        title="Cascade Delete User"
+                                        onClick={() => handleDeleteUser(u)}
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="6" className="empty-table">No subscriptions found.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="plans-config-grid">
+                        {plansList.map(plan => (
+                          <div key={plan.id} className={`plan-config-card plan-theme-${plan.id} ${plan.isPopular ? 'is-popular' : ''}`}>
+                            <button className="card-delete-icon-btn" title="Delete Pricing Tier" onClick={() => handleDeletePlan(plan)}>
+                              <Trash2 size={15} />
+                            </button>
+                            {plan.badge && (
+                              <span className={`plan-badge-top ${plan.isPopular ? 'popular' : 'best-value'}`}>
+                                {(() => {
+                                  const badgeLower = plan.badge.toLowerCase();
+                                  if (badgeLower.includes('popular')) return <Zap size={12} />;
+                                  if (badgeLower.includes('value') || badgeLower.includes('best')) return <Award size={12} />;
+                                  if (badgeLower.includes('current')) return <Star size={12} />;
+                                  return <Sparkles size={12} />;
+                                })()}
+                                {plan.badge}
+                              </span>
+                            )}
+                            <div className="plan-card-header">
+                              <h4>{plan.planName}</h4>
+                              {(() => {
+                                const amt = plan.amount || "$0";
+                                const parts = amt.split('/');
+                                return (
+                                  <div className="price-wrapper">
+                                    <span className="price-value">{parts[0].trim()}</span>
+                                    {parts[1] && <span className="price-interval">/ {parts[1].trim() === 'mo' ? 'month' : parts[1].trim()}</span>}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div className="plan-card-body">
+                              <div className="plan-credits-limit">
+                                <Tag size={13} style={{ marginRight: '6px', flexShrink: 0 }} />
+                                {plan.creditLimit?.toLocaleString()} Lead Discovery Credits
+                              </div>
+                              <ul className="plan-features-list">
+                                {plan.features?.map((feat, idx) => (
+                                  <li key={idx} className="feature-item">
+                                    <CheckCircle size={14} className="feature-check-icon" style={{ flexShrink: 0 }} />
+                                    <span className="feature-text">{feat}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div className="plan-card-actions">
+                              <button className="edit-btn" onClick={() => handleOpenEditPlanModal(plan)}>
+                                <Edit2 size={13} style={{ marginRight: '6px' }} /> Edit Tier
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -957,6 +1553,130 @@ const AdminPanel = ({ user, onLogout }) => {
                   </div>
                 </div>
               )}
+
+              {/* TAB 5: ACTIVITY LOGS */}
+              {activeTab === 'activity' && (() => {
+                const itemsPerPage = 10;
+                const totalLogsCount = filteredActivityLogs.length;
+                const totalPages = Math.ceil(totalLogsCount / itemsPerPage) || 1;
+                const activePage = activityPage > totalPages ? totalPages : activityPage;
+                
+                const startIndex = totalLogsCount === 0 ? 0 : (activePage - 1) * itemsPerPage + 1;
+                const endIndex = Math.min(activePage * itemsPerPage, totalLogsCount);
+                const paginatedLogs = filteredActivityLogs.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+
+                return (
+                  <div className="tab-pane animate-fade-in">
+                    <div className="table-container">
+                      <div className="table-header-bar">
+                        <h2>System Activity Logs ({filteredActivityLogs.length})</h2>
+                        <div className="directory-controls-bar" style={{ gap: '16px', display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                          <div className="control-group">
+                            <label>Filter Action Type</label>
+                            <select 
+                              value={activityFilter} 
+                              onChange={(e) => {
+                                setActivityFilter(e.target.value);
+                                setActivityPage(1);
+                              }}
+                            >
+                              <option value="all">All Events</option>
+                              <option value="Logged In">Logged In</option>
+                              <option value="API Key Created">API Key Created</option>
+                              <option value="Updated Lead Config">Updated Lead Config</option>
+                            </select>
+                          </div>
+                          <div className="search-input-wrapper">
+                            <Search size={16} />
+                            <input 
+                              type="text" 
+                              placeholder="Search logs..."
+                              value={userSearch}
+                              onChange={(e) => {
+                                setUserSearch(e.target.value);
+                                setActivityPage(1);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ overflowX: 'auto' }}>
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>User Details</th>
+                              <th>Action Event</th>
+                              <th>IP Address</th>
+                              <th>Device / Browser</th>
+                              <th>Timestamp</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedLogs.length > 0 ? (
+                              paginatedLogs.map((log, idx) => (
+                                <tr key={log.id || idx}>
+                                  <td>
+                                    <div className="user-profile-cell">
+                                      <div className="avatar-small">{log.userName ? log.userName.charAt(0).toUpperCase() : 'U'}</div>
+                                      <div className="user-info-text">
+                                        <span className="name">{log.userName}</span>
+                                        <span className="email" style={{ fontSize: '0.75rem', opacity: 0.6 }}>{log.userEmail}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <span className={`badge ${
+                                      log.action === 'Logged In' ? 'success' : 
+                                      (log.action === 'API Key Created' ? 'primary' : 'warning')
+                                    }`}>
+                                      {log.action}
+                                    </span>
+                                  </td>
+                                  <td style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{log.ipAddress}</td>
+                                  <td style={{ fontSize: '0.85rem', color: '#64748B' }}>{log.device}</td>
+                                  <td style={{ fontWeight: '500', fontSize: '0.85rem' }}>{log.timestamp}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="5" className="empty-table">No activity records match the query.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination Controls */}
+                      <div className="pagination-bar">
+                        <div className="pagination-info">
+                          Showing {startIndex} to {endIndex} of {totalLogsCount} events
+                        </div>
+                        <div className="pagination-buttons">
+                          <button 
+                            className="pagination-btn"
+                            onClick={() => setActivityPage(prev => Math.max(prev - 1, 1))}
+                            disabled={activePage === 1}
+                          >
+                            Previous
+                          </button>
+                          <span className="page-indicator">
+                            Page {activePage} of {totalPages}
+                          </span>
+                          <button 
+                            className="pagination-btn"
+                            onClick={() => setActivityPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={activePage === totalPages}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </main>
@@ -964,8 +1684,8 @@ const AdminPanel = ({ user, onLogout }) => {
 
       {/* CREDIT ADJUSTMENT MODAL */}
       {selectedUserForCredits && (
-        <div className="modal-backdrop">
-          <div className="modal-content animate-slide-in">
+        <div className="modal-backdrop sub-modal-backdrop" onClick={() => setSelectedUserForCredits(null)}>
+          <div className="modal-content sub-modal-content credits-modal animate-slide-in" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Adjust User Credits</h3>
               <button className="close-btn" onClick={() => setSelectedUserForCredits(null)}>
@@ -1018,6 +1738,395 @@ const AdminPanel = ({ user, onLogout }) => {
                 </button>
                 <button type="submit" className="save-btn">
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER DETAIL MODAL */}
+      {selectedUser && (
+        <div className="modal-backdrop" onClick={() => setSelectedUser(null)}>
+          <div className="modal-content admin-user-detail-modal animate-slide-in" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="user-header-info">
+                <div className="avatar-large">{selectedUser.name?.charAt(0).toUpperCase() || 'U'}</div>
+                <div className="user-header-details">
+                  <h3>{selectedUser.name}</h3>
+                  <p>{selectedUser.email}</p>
+                </div>
+              </div>
+              <button className="close-btn" onClick={() => setSelectedUser(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body-split">
+              {/* SECTION A: Payment Settings & Billing */}
+              <div className="modal-section section-a">
+                <h4>Payment Settings & Billing</h4>
+                
+                {selectedUser.paymentMethod ? (
+                  <div className="detail-card payment-method-card">
+                    <div className="card-branding-row">
+                      <CreditCard size={28} className="card-icon" />
+                      <span className="card-brand-name">{selectedUser.paymentMethod.cardBrand}</span>
+                    </div>
+                    <div className="card-number-display">
+                      •••• •••• •••• {selectedUser.paymentMethod.last4}
+                    </div>
+                    <div className="card-footer-row">
+                      <div className="card-meta">
+                        <span className="label">Expires</span>
+                        <span className="value">{selectedUser.paymentMethod.expiry}</span>
+                      </div>
+                      <div className="card-meta">
+                        <span className="label">Status</span>
+                        <span className="badge verification-verified" style={{ padding: '2px 8px', fontSize: '0.65rem' }}>Active</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="no-payment-banner">
+                    <AlertTriangle size={24} className="warning-icon" />
+                    <div>
+                      <h5>No Payment Method</h5>
+                      <p>This user has not configured a credit or debit card. Accounts without a linked card are limited to Free scans.</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="billing-info-box">
+                  <h5>Billing Details</h5>
+                  <div className="detail-row">
+                    <span className="label">Billing Email</span>
+                    <span className="value">{selectedUser.paymentMethod?.billingEmail || selectedUser.email}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Billing Frequency</span>
+                    <span className="value">Monthly</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Processor</span>
+                    <span className="value">Stripe Gateway</span>
+                  </div>
+                </div>
+
+                <div className="payment-action-buttons">
+                  <button 
+                    className="toggle-payment-card-btn"
+                    onClick={handleTogglePaymentCard}
+                  >
+                    {selectedUser.paymentMethod ? 'Remove Card Details' : 'Link Mock Card Details'}
+                  </button>
+
+                  <button 
+                    className="request-billing-update-btn"
+                    onClick={() => {
+                      setSuccessMsg(`Sent payment update reminder to ${selectedUser.email}.`);
+                    }}
+                  >
+                    Request Payment Update
+                  </button>
+                </div>
+
+                {/* 4. Relocated Subscription Section */}
+                {(() => {
+                  const planClass = (selectedUser.subscription?.planName || 'Free').toLowerCase(); // 'pro', 'enterprise', 'free'
+                  const creditsLimit = selectedUser.creditLimit || 25;
+                  const creditsUsed = selectedUser.creditsUsed || 0;
+                  const percentUsed = Math.min(100, Math.max(0, Math.round((creditsUsed / creditsLimit) * 100)));
+
+                  return (
+                    <div className="sub-section subscription-premium-section" style={{ marginTop: '20px' }}>
+                      <h5>Subscription Plan</h5>
+                      <div className={`subscription-plan-card plan-theme-${planClass}`}>
+                        <div className="card-header-row">
+                          <div className="plan-badge-group">
+                            <Sparkles size={16} className="sparkle-icon" />
+                            <span className="plan-title-text">{selectedUser.subscription?.planName || 'Free'} Plan</span>
+                          </div>
+                          <div className="status-pulsar-badge">
+                            <span className="pulse-dot"></span>
+                            <span className="status-text">Active</span>
+                          </div>
+                        </div>
+
+                        <div className="pricing-renewal-row">
+                          <div className="pricing-item">
+                            <span className="card-label">Billing Amount</span>
+                            <span className="pricing-value">{selectedUser.subscription?.amount || '$0'}</span>
+                          </div>
+                          <div className="renewal-item">
+                            <span className="card-label">Next Renewal</span>
+                            <span className="renewal-value">{selectedUser.subscription?.renewalDate || 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        {/* Credits Usage Progress Bar */}
+                        <div className="usage-progress-container">
+                          <div className="usage-labels-row">
+                            <span className="card-label">Credits Balance</span>
+                            <span className="usage-value-text">{creditsUsed} / {creditsLimit} Used ({percentUsed}%)</span>
+                          </div>
+                          <div className="progress-bar-track">
+                            <div 
+                              className={`progress-bar-fill ${percentUsed > 85 ? 'fill-danger' : (percentUsed > 60 ? 'fill-warning' : 'fill-safe')}`} 
+                              style={{ width: `${percentUsed}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Action buttons inside the card footer */}
+                        <div className="card-actions-row">
+                          <button 
+                            className="card-action-btn btn-stripe-sync"
+                            onClick={() => {
+                              setSuccessMsg(`Synchronized Stripe metadata for user ${selectedUser.email}.`);
+                            }}
+                          >
+                            Sync Stripe
+                          </button>
+                          {planClass === 'free' ? (
+                            <button 
+                              className="card-action-btn btn-plan-upgrade"
+                              onClick={handleUpgradePlan}
+                            >
+                              Upgrade Plan
+                            </button>
+                          ) : (
+                            <button 
+                              className="card-action-btn btn-plan-cancel"
+                              onClick={handleCancelPlan}
+                            >
+                              Cancel Plan
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* SECTION B: Profile, Subscription & Activity */}
+              <div className="modal-section section-b">
+                <h4>Profile & Account Details</h4>
+                
+                {/* 2. Personal Details */}
+                <div className="sub-section">
+                  <h5>Personal Details</h5>
+                  <div className="sub-card">
+                    <div className="detail-row">
+                      <span className="label">Full Name</span>
+                      <span className="value">{selectedUser.name}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Email Address</span>
+                      <span className="value">{selectedUser.email}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Phone Number</span>
+                      <span className="value">{selectedUser.phone}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Join Date</span>
+                      <span className="value">{selectedUser.joinDate}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Company & Platform Details */}
+                <div className="sub-section">
+                  <h5>Company Details</h5>
+                  <div className="sub-card">
+                    <div className="detail-row">
+                      <span className="label">Company Name</span>
+                      <span className="value">{selectedUser.company?.name || 'N/A'}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Website</span>
+                      <span className="value">
+                        {selectedUser.company?.website && selectedUser.company.website !== 'N/A' ? (
+                          <a 
+                            href={selectedUser.company.website} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="company-link-modal"
+                          >
+                            {selectedUser.company.website.replace('https://', '').replace('http://', '')}
+                          </a>
+                        ) : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Industry</span>
+                      <span className="value">{selectedUser.company?.industry || 'N/A'}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">Company Size</span>
+                      <span className="value">{selectedUser.company?.size || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECTION SUB-MODAL */}
+      {isRejectModalOpen && (
+        <div className="modal-backdrop sub-modal-backdrop">
+          <div className="modal-content sub-modal-content animate-slide-in" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Reason for Rejection</h3>
+              <button className="close-btn" onClick={() => setIsRejectModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="sub-modal-tip">Please explain why this user's identity verification document is being rejected. This explanation will be displayed to the user.</p>
+              <div className="form-group">
+                <textarea
+                  id="rejection-reason-textarea"
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g., Document is expired or name does not match the profile..."
+                  rows={4}
+                  required
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="cancel-btn" onClick={() => setIsRejectModalOpen(false)}>
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="save-btn btn-reject-confirm"
+                onClick={() => {
+                  if (!rejectionReasonInput.trim()) {
+                    setErrorMsg('Please enter a rejection reason.');
+                    return;
+                  }
+                  updateVerificationStatus(selectedUser.id, 'REJECTED', rejectionReasonInput);
+                  setIsRejectModalOpen(false);
+                }}
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ADD/EDIT PLAN MODAL */}
+      {isPlanModalOpen && (
+        <div className="modal-backdrop sub-modal-backdrop" onClick={() => setIsPlanModalOpen(false)}>
+          <div className="modal-content sub-modal-content pricing-plan-modal animate-slide-in" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{editingPlan ? 'Edit Pricing Plan Tier' : 'Create Custom Pricing Plan'}</h3>
+              <button className="close-btn" onClick={() => setIsPlanModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSavePlan}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="plan-slug-input">Plan Unique ID (Slug)</label>
+                  <input
+                    type="text"
+                    id="plan-slug-input"
+                    value={planSlug}
+                    onChange={(e) => setPlanSlug(e.target.value)}
+                    placeholder="e.g. starter, enterprise, growth"
+                    disabled={!!editingPlan}
+                    required
+                  />
+                  <small className="field-hint">Must be a unique lowercase identifier. Cannot be changed later.</small>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="plan-name-input">Plan Display Name</label>
+                  <input
+                    type="text"
+                    id="plan-name-input"
+                    value={planName}
+                    onChange={(e) => setPlanName(e.target.value)}
+                    placeholder="e.g. Pro, Premium Growth, Enterprise"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="plan-amount-input">Price Details (Display Label)</label>
+                  <input
+                    type="text"
+                    id="plan-amount-input"
+                    value={planAmount}
+                    onChange={(e) => setPlanAmount(e.target.value)}
+                    placeholder="e.g. $29 / mo, Custom Pricing, $299 / year"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="plan-limit-input">Credit Limit Quota</label>
+                  <input
+                    type="number"
+                    id="plan-limit-input"
+                    value={planCreditLimit}
+                    onChange={(e) => setPlanCreditLimit(e.target.value)}
+                    placeholder="e.g. 500, 2500"
+                    min="1"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="plan-badge-input">Card Badge Tag Label (Optional)</label>
+                  <input
+                    type="text"
+                    id="plan-badge-input"
+                    value={planBadge}
+                    onChange={(e) => setPlanBadge(e.target.value)}
+                    placeholder="e.g. Popular, Best Value, Super Discount"
+                  />
+                  <small className="field-hint">Displays a custom badge over the card on the client pricing page.</small>
+                </div>
+
+                <div className="form-group checkbox-group">
+                  <label htmlFor="plan-is-popular-input" className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      id="plan-is-popular-input"
+                      checked={planIsPopular}
+                      onChange={(e) => setPlanIsPopular(e.target.checked)}
+                      style={{ marginRight: '8px', cursor: 'pointer' }}
+                    />
+                    Set as Most Popular (Featured Plan)
+                  </label>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="plan-features-input">Plan Features (Comma-Separated)</label>
+                  <textarea
+                    id="plan-features-input"
+                    value={planFeaturesText}
+                    onChange={(e) => setPlanFeaturesText(e.target.value)}
+                    placeholder="e.g. Unlimited scans, CSV Export, Priority Support"
+                    rows={4}
+                  />
+                  <small className="field-hint">Enter features separated by commas.</small>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="cancel-btn" onClick={() => setIsPlanModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="save-btn">
+                  {editingPlan ? 'Save Plan' : 'Create Plan'}
                 </button>
               </div>
             </form>
