@@ -92,14 +92,18 @@
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all $transition-base;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
       width: 100%;
       text-align: left;
       border: 1px solid transparent;
+      outline: none !important;
+
+      &:focus {
+        outline: none !important;
+      }
 
       svg {
         color: $text-muted;
-        transition: color $transition-base;
       }
 
       &:hover {
@@ -116,10 +120,12 @@
         color: #ffffff !important;
         font-weight: 600 !important;
         box-shadow: 0 4px 12px rgba(3, 113, 114, 0.35) !important;
-        border: none !important;
+        border: 1px solid transparent !important;
+        transition: none !important;
 
         svg {
           color: #ffffff !important;
+          transition: none !important;
         }
       }
     }
@@ -3547,3 +3553,101 @@ select {
     }
   }
 }
+
+// ==========================================
+// MOBILE RESPONSIVENESS AND DRAWERS OVERRIDES
+// ==========================================
+.admin-header .header-left-group .hamburger-btn {
+  display: none;
+  
+  @media (max-width: 768px) {
+    display: flex !important;
+  }
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  // Hide sidebar off-screen by default
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1050;
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.15);
+
+    &.open {
+      transform: translateX(0) !important;
+    }
+  }
+
+  // Sidebar backdrop overlay
+  .sidebar-backdrop {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 1040;
+    animation: fadeInAdmin 0.2s ease;
+  }
+
+  // Header adjustments
+  .admin-header {
+    padding: 0 12px !important;
+  }
+
+  // Dashboard layout grids
+  .detailed-metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .charts-double-row {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  // Details Modal overlays
+  .modal-content {
+    width: 95% !important;
+    padding: 16px !important;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  // Tables container horizontal scroll indicators
+  .table-container {
+    padding: 8px !important;
+    
+    .table-header-bar {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px !important;
+      padding: 8px !important;
+    }
+  }
+
+  .admin-table {
+    th, td {
+      padding: 8px 12px !important;
+      font-size: 0.85rem !important;
+    }
+  }
+}
+
+@keyframes fadeInAdmin {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+

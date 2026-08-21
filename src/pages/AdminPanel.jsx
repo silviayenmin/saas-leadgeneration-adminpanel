@@ -9,6 +9,7 @@ import {
   Key, 
   LogOut, 
   TrendingUp, 
+  LayoutGrid,
   Database,
   Moon,
   Sun,
@@ -55,7 +56,9 @@ import './AdminPanel.scss';
 
 const enrichUserWithMockDetails = (u) => {
   // Map role
-  const mappedRole = u.role === 'admin' ? 'ADMIN' : (u.role === 'editor' ? 'EDITOR' : 'MEMBER');
+  const rLower = u.role?.toLowerCase() || '';
+  const isAdmin = rLower === 'admin' || rLower === 'super_admin' || rLower === 'superadmin' || rLower === 'super admin';
+  const mappedRole = isAdmin ? 'ADMIN' : (rLower === 'editor' ? 'EDITOR' : 'MEMBER');
   
   // Status: ACTIVE or SUSPENDED
   const mappedStatus = u.status || 'ACTIVE'; 
@@ -152,7 +155,7 @@ const AdminPanel = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'users', 'scans'
   const [roleFilter, setRoleFilter] = useState('all'); // 'all', 'ADMIN', 'EDITOR', 'MEMBER'
   const [verificationFilter, setVerificationFilter] = useState('all'); // 'all', 'PENDING', 'VERIFIED', 'REJECTED'
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     freeTiers: 0,
@@ -223,7 +226,20 @@ const AdminPanel = ({ user, onLogout }) => {
   const [creditLimitInput, setCreditLimitInput] = useState(25);
   const [creditsUsedInput, setCreditsUsedInput] = useState(0);
 
+  // Custom Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({ show: false, userId: '', userName: '', message: '' });
+
+  // Self Profile & Password Change States
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isSelfPasswordModalOpen, setIsSelfPasswordModalOpen] = useState(false);
+  const [selfCurrentPassword, setSelfCurrentPassword] = useState('');
+  const [selfNewPassword, setSelfNewPassword] = useState('');
+  const [selfConfirmPassword, setSelfConfirmPassword] = useState('');
+  const [selfPasswordLoading, setSelfPasswordLoading] = useState(false);
+  const [selfPasswordError, setSelfPasswordError] = useState('');
+
   // Loading & error states
+  const [dbActivityLogs, setDbActivityLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -286,6 +302,8 @@ const AdminPanel = ({ user, onLogout }) => {
       if (res.data.success) {
         const enriched = res.data.data.map(u => enrichUserWithMockDetails(u));
         setUsersList(enriched);
+        // Refresh activity logs as well
+        fetchActivities();
       }
     } catch (err) {
       console.error('Failed to load users:', err);
@@ -314,9 +332,20 @@ const AdminPanel = ({ user, onLogout }) => {
     }
   };
 
+  const fetchActivities = async () => {
+    try {
+      const res = await api.get(`/admin/activities?_t=${Date.now()}`);
+      if (res.data.success) {
+        setDbActivityLogs(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load activity logs:', err);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchStats(), fetchUsers(), fetchScans(), fetchPlans()]);
+    await Promise.all([fetchStats(), fetchUsers(), fetchScans(), fetchPlans(), fetchActivities()]);
     setLoading(false);
   };
 
@@ -329,6 +358,22 @@ const AdminPanel = ({ user, onLogout }) => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('mapflow_admin_theme', theme);
   }, [theme]);
+
+  // Close profile dropdown on clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (isProfileDropdownOpen) {
+        const badgeElement = document.querySelector('.admin-badge');
+        if (badgeElement && !badgeElement.contains(event.target)) {
+          setIsProfileDropdownOpen(false);
+        }
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isProfileDropdownOpen]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -378,20 +423,35 @@ const AdminPanel = ({ user, onLogout }) => {
     }
   };
 
-  const toggleUserStatus = (userId) => {
+  const toggleUserStatus = async (userId) => {
     let nextStatus = 'ACTIVE';
-    setUsersList(prev => prev.map(u => {
-      if (u.id === userId) {
-        nextStatus = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-        const updated = { ...u, status: nextStatus };
-        if (selectedUser && selectedUser.id === userId) {
-          setSelectedUser(updated);
-        }
-        return updated;
+    const userToToggle = usersList.find(u => u.id === userId);
+    if (!userToToggle) return;
+    
+    nextStatus = userToToggle.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    try {
+      const response = await api.put(`/admin/users/${userId}/status`, { status: nextStatus });
+      if (response.data.success) {
+        setUsersList(prev => prev.map(u => {
+          if (u.id === userId) {
+            const updated = { ...u, status: nextStatus };
+            if (selectedUser && selectedUser.id === userId) {
+              setSelectedUser(updated);
+            }
+            return updated;
+          }
+          return u;
+        }));
+        setSuccessMsg(`User successfully ${nextStatus === 'ACTIVE' ? 'activated' : 'suspended'}.`);
       }
-      return u;
-    }));
-    setSuccessMsg(`User successfully ${nextStatus === 'ACTIVE' ? 'activated' : 'suspended'}.`);
+    } catch (err) {
+      console.error("Failed to update user status:", err);
+      setErrorMsg(err.response?.data?.detail || 'Failed to update user status. Please try again.');
+    }
   };
 
   const handleCreateAdmin = async (e) => {
@@ -432,41 +492,65 @@ const AdminPanel = ({ user, onLogout }) => {
     }
   };
 
-  const handleSavePassword = async (e) => {
-    e.preventDefault();
-    if (!newPasswordInput.trim() || !confirmPasswordInput.trim()) {
-      setErrorMsg('Please fill in all fields.');
-      return;
-    }
-    if (newPasswordInput !== confirmPasswordInput) {
-      setErrorMsg('Passwords do not match.');
-      return;
-    }
-    
-    setPasswordModalLoading(true);
+  const executePasswordGeneration = async (userId, userName) => {
+    setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
     
     try {
-      const response = await api.put(`/admin/users/${passwordUserId}/password`, {
-        password: newPasswordInput.trim()
-      });
-      
+      const response = await api.post(`/admin/users/${userId}/generate-password`);
       if (response.data?.success) {
-        setSuccessMsg(response.data.message || 'Password changed successfully.');
-        
-        // Reset form and close modal
-        setNewPasswordInput('');
-        setConfirmPasswordInput('');
-        setPasswordUserId('');
-        setPasswordUserName('');
-        setIsPasswordModalOpen(false);
+        const genPass = response.data.generatedPassword;
+        setSuccessMsg(`Successfully generated password for ${userName}. New password: "${genPass}" (has been emailed to the user).`);
+        fetchUsers();
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.response?.data?.detail || 'Failed to update user password.');
+      setErrorMsg(err.response?.data?.detail || 'Failed to generate user password.');
     } finally {
-      setPasswordModalLoading(false);
+      setLoading(false);
+      setConfirmModal({ show: false, userId: '', userName: '', message: '' });
+    }
+  };
+
+  const handleSelfPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!selfCurrentPassword.trim() || !selfNewPassword.trim() || !selfConfirmPassword.trim()) {
+      setSelfPasswordError('Please fill in all fields.');
+      return;
+    }
+    if (selfNewPassword !== selfConfirmPassword) {
+      setSelfPasswordError('New passwords do not match.');
+      return;
+    }
+    if (selfNewPassword.length < 6) {
+      setSelfPasswordError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    setSelfPasswordLoading(true);
+    setSelfPasswordError('');
+    
+    try {
+      const response = await api.post('/auth/change-password', {
+        current_password: selfCurrentPassword.trim(),
+        new_password: selfNewPassword.trim()
+      });
+      
+      if (response.data?.success || response.data?.message) {
+        setSuccessMsg('Your password has been changed successfully.');
+        
+        // Reset and close
+        setSelfCurrentPassword('');
+        setSelfNewPassword('');
+        setSelfConfirmPassword('');
+        setIsSelfPasswordModalOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setSelfPasswordError(err.response?.data?.detail || 'Failed to update your password. Make sure current password is correct.');
+    } finally {
+      setSelfPasswordLoading(false);
     }
   };
 
@@ -763,16 +847,10 @@ const AdminPanel = ({ user, onLogout }) => {
   );
 
   // Aggregate and filter global activity logs
-  const allActivityLogs = usersList.flatMap(u => 
-    (u.recentActivity || []).map(act => ({
-      ...act,
-      userId: u.id,
-      userName: u.name,
-      userEmail: u.email
-    }))
-  ).sort((a, b) => {
+  const allActivityLogs = [...dbActivityLogs].sort((a, b) => {
     try {
       const parseDate = (ts) => {
+        if (!ts) return new Date(0);
         const parts = ts.split(', ');
         if (parts.length === 2) {
           const dateParts = parts[0].split('/');
@@ -806,7 +884,7 @@ const AdminPanel = ({ user, onLogout }) => {
     <div className="admin-dashboard-container">
       
       {/* Sidebar */}
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-brand">
           <div className="brand-left">
             <div className="brand-icon">
@@ -820,23 +898,23 @@ const AdminPanel = ({ user, onLogout }) => {
         <nav className="sidebar-nav">
           <button 
             className={`nav-item ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
+            onClick={() => { setActiveTab('overview'); setSidebarOpen(false); }}
           >
-            <TrendingUp size={18} />
-            <span>Overview Stats</span>
+            <LayoutGrid size={18} />
+            <span>Dashboard</span>
           </button>
           
           <button 
             className={`nav-item ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
+            onClick={() => { setActiveTab('users'); setSidebarOpen(false); }}
           >
             <Users size={18} />
-            <span>User Directory</span>
+            <span>Users</span>
           </button>
 
           <button 
             className={`nav-item ${activeTab === 'subscriptions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('subscriptions')}
+            onClick={() => { setActiveTab('subscriptions'); setSidebarOpen(false); }}
           >
             <CreditCard size={18} />
             <span>Subscriptions</span>
@@ -845,7 +923,7 @@ const AdminPanel = ({ user, onLogout }) => {
           {/* Hiding Platform Scans page for now
           <button 
             className={`nav-item ${activeTab === 'scans' ? 'active' : ''}`}
-            onClick={() => setActiveTab('scans')}
+            onClick={() => { setActiveTab('scans'); setSidebarOpen(false); }}
           >
             <MapPin size={18} />
             <span>Platform Scans</span>
@@ -857,6 +935,7 @@ const AdminPanel = ({ user, onLogout }) => {
             onClick={() => {
               setActiveTab('activity');
               setActivityPage(1);
+              setSidebarOpen(false);
             }}
           >
             <Clock size={18} />
@@ -878,13 +957,31 @@ const AdminPanel = ({ user, onLogout }) => {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="sidebar-backdrop" 
+          onClick={() => setSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Main Work Area */}
       <div className="admin-main">
         
         {/* Header Bar */}
         <header className="admin-header">
           <div className="header-left-group">
-            {/* Global Search Bar Removed */}
+            <button 
+              type="button" 
+              className="hamburger-btn" 
+              onClick={(e) => {
+                e.stopPropagation();
+                setSidebarOpen(!sidebarOpen);
+              }}
+              title="Toggle Sidebar"
+            >
+              <Menu size={20} />
+            </button>
           </div>
 
           <div className="header-right-group">
@@ -895,12 +992,79 @@ const AdminPanel = ({ user, onLogout }) => {
             <button className="theme-toggle" onClick={toggleTheme} title="Toggle Light/Dark Theme">
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <div className="admin-badge">
-              <div className="avatar-circle">A</div>
+            <div 
+              className="admin-badge" 
+              onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+              style={{ cursor: 'pointer', position: 'relative' }}
+            >
+              <div className="avatar-circle">{user?.fullName?.charAt(0).toUpperCase() || 'A'}</div>
               <div className="avatar-details">
                 <span className="name">{user?.fullName || 'Admin User'}</span>
-                <span className="sub">Super Admin</span>
+                <span className="sub">{user?.role === 'super_admin' || user?.role === 'superadmin' || user?.role === 'super admin' ? 'Super Admin' : 'Admin'}</span>
               </div>
+              
+              {isProfileDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '8px',
+                  width: '240px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                  border: '1px solid rgba(148, 163, 184, 0.15)',
+                  padding: '16px',
+                  zIndex: 1000,
+                  cursor: 'default',
+                  textAlign: 'left'
+                }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px', marginBottom: '12px' }}>
+                    <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '0.92rem' }}>{user?.fullName}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px', wordBreak: 'break-all' }}>{user?.email}</div>
+                    <div style={{ 
+                      display: 'inline-block',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      color: '#0ea5a4',
+                      backgroundColor: 'rgba(14, 165, 164, 0.1)',
+                      padding: '2px 8px',
+                      borderRadius: '100px',
+                      marginTop: '6px'
+                    }}>
+                      {user?.role === 'super_admin' || user?.role === 'superadmin' || user?.role === 'super admin' ? 'Super Admin' : 'Admin'}
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      setIsSelfPasswordModalOpen(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      background: 'none',
+                      border: 'none',
+                      color: '#475569',
+                      fontSize: '0.85rem',
+                      fontWeight: '600',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <Key size={14} style={{ color: '#0ea5a4' }} />
+                    <span>Change Password</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -1329,24 +1493,9 @@ const AdminPanel = ({ user, onLogout }) => {
                             </div>
                           )}
 
-                          {userSubTab === 'customers' && (
-                            <div className="filter-dropdown-wrapper">
-                              <CustomSelect 
-                                value={roleFilter} 
-                                onChange={(val) => {
-                                  setRoleFilter(val);
-                                  setCurrentPage(1);
-                                }}
-                                options={[
-                                  { value: 'all', label: 'All Roles' },
-                                  { value: 'EDITOR', label: 'Editor' },
-                                  { value: 'MEMBER', label: 'Member' }
-                                ]}
-                              />
-                            </div>
-                          )}
 
-                          {userSubTab === 'admins' && (
+
+                          {userSubTab === 'admins' && (user?.role === 'super_admin' || user?.role === 'superadmin' || user?.role === 'super admin') && (
                             <button 
                               type="button"
                               className="add-plan-btn"
@@ -1484,35 +1633,41 @@ const AdminPanel = ({ user, onLogout }) => {
                                   )}
                                   {userSubTab === 'admins' && (
                                     <td>
-                                      <button 
-                                        type="button"
-                                        className="action-btn text-teal-btn"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setPasswordUserId(u.id);
-                                          setPasswordUserName(u.name || u.fullName);
-                                          setIsPasswordModalOpen(true);
-                                        }}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: '#0ea5a4',
-                                          cursor: 'pointer',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                          fontSize: '0.8rem',
-                                          fontWeight: '600',
-                                          padding: '4px 8px',
-                                          borderRadius: '4px',
-                                          transition: 'all 0.15s ease'
-                                        }}
-                                        title="Change Password"
-                                        onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(14, 165, 164, 0.08)'}
-                                        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                                      >
-                                        <Key size={14} /> Change Password
-                                      </button>
+                                      {(user?.role === 'super_admin' || user?.role === 'superadmin' || user?.role === 'super admin') ? (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setConfirmModal({
+                                              show: true,
+                                              userId: u.id,
+                                              userName: u.name || u.fullName || u.email,
+                                              message: `Are you sure you want to generate a new random password for ${u.name || u.fullName || u.email}? This will immediately reset their password and email them the new credentials.`
+                                            });
+                                          }}
+                                          style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#0ea5a4',
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontSize: '0.8rem',
+                                            fontWeight: '600',
+                                            padding: '4px 8px',
+                                            borderRadius: '4px',
+                                            transition: 'all 0.15s ease'
+                                          }}
+                                          title="Generate Password"
+                                          onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(14, 165, 164, 0.08)'}
+                                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                                        >
+                                          <Key size={14} /> Generate Password
+                                        </button>
+                                      ) : (
+                                        <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic', paddingLeft: '8px' }}>Protected</span>
+                                      )}
                                     </td>
                                   )}
                                 </tr>
@@ -2040,95 +2195,309 @@ const AdminPanel = ({ user, onLogout }) => {
           </div>
         </div>
       )}
-
-      {/* CHANGE PASSWORD MODAL */}
-      {isPasswordModalOpen && (
-        <div className="modal-backdrop sub-modal-backdrop" onClick={() => setIsPasswordModalOpen(false)}>
-          <div className="modal-content pricing-plan-modal animate-slide-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <div className="modal-header">
-              <h3>Change Password</h3>
-              <button className="close-btn" onClick={() => setIsPasswordModalOpen(false)}>
+      {/* CUSTOM CONFIRMATION DIALOG */}
+      {confirmModal.show && (
+        <div className="modal-backdrop sub-modal-backdrop" style={{ backdropFilter: 'blur(4px)' }} onClick={() => setConfirmModal({ show: false, userId: '', userName: '', message: '' })}>
+          <div className="animate-slide-in" onClick={(e) => e.stopPropagation()} style={{
+            maxWidth: '460px',
+            width: '90%',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            padding: '24px',
+            border: '1px solid rgba(148, 163, 184, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: '700' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(14, 165, 164, 0.1)',
+                  color: '#0ea5a4'
+                }}>
+                  <AlertTriangle size={18} />
+                </div>
+                <span>Generate Password</span>
+              </h3>
+              <button 
+                onClick={() => setConfirmModal({ show: false, userId: '', userName: '', message: '' })}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
                 <X size={18} />
               </button>
             </div>
             
-            <form onSubmit={handleSavePassword}>
-              <div className="modal-body overflow-visible">
-                {errorMsg && (
-                  <div style={{
-                    marginBottom: '16px',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                    color: '#ef4444',
-                    fontSize: '0.82rem',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    <AlertCircle size={16} />
-                    {errorMsg}
-                  </div>
-                )}
-                <div className="user-details-summary" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div className="avatar-medium" style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    background: 'rgba(14, 165, 164, 0.1)',
-                    color: '#0ea5a4',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '1.1rem'
-                  }}>{passwordUserName?.charAt(0).toUpperCase()}</div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700' }}>{passwordUserName}</h4>
-                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)' }}>Reset login credentials</p>
-                  </div>
-                </div>
+            {/* Body */}
+            <div style={{ color: '#475569', fontSize: '0.92rem', lineHeight: '1.6', margin: '8px 0' }}>
+              Are you sure you want to generate a new random password for <strong style={{ color: '#0f172a' }}>{confirmModal.userName}</strong>? This will immediately reset their password and email them the new credentials.
+            </div>
+            
+            {/* Footer */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                type="button" 
+                onClick={() => setConfirmModal({ show: false, userId: '', userName: '', message: '' })}
+                style={{
+                  height: '40px',
+                  padding: '0 18px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: '#475569',
+                  fontWeight: '600',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#94a3b8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={() => executePasswordGeneration(confirmModal.userId, confirmModal.userName)}
+                style={{
+                  height: '40px',
+                  padding: '0 18px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #037172 0%, #0d9488 100%)',
+                  color: '#ffffff',
+                  fontWeight: '600',
+                  fontSize: '0.88rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(3, 113, 114, 0.25)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                Confirm Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                <div className="form-group">
-                  <label>New Password *</label>
-                  <input 
-                    type="password" 
-                    placeholder="Enter new password (min 6 chars)"
-                    value={newPasswordInput}
-                    onChange={(e) => setNewPasswordInput(e.target.value)}
-                    required
-                  />
+      {/* SELF PASSWORD CHANGE MODAL */}
+      {isSelfPasswordModalOpen && (
+        <div className="modal-backdrop sub-modal-backdrop" style={{ backdropFilter: 'blur(4px)' }} onClick={() => setIsSelfPasswordModalOpen(false)}>
+          <div className="animate-slide-in" onClick={(e) => e.stopPropagation()} style={{
+            maxWidth: '440px',
+            width: '90%',
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            padding: '24px',
+            border: '1px solid rgba(148, 163, 184, 0.15)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0, fontSize: '1.15rem', color: '#0f172a', fontWeight: '700' }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(14, 165, 164, 0.1)',
+                  color: '#0ea5a4'
+                }}>
+                  <Key size={18} />
                 </div>
-                
-                <div className="form-group" style={{ marginTop: '12px' }}>
-                  <label>Confirm Password *</label>
-                  <input 
-                    type="password" 
-                    placeholder="Confirm new password"
-                    value={confirmPasswordInput}
-                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                    required
-                  />
+                <span>Change Your Password</span>
+              </h3>
+              <button 
+                onClick={() => setIsSelfPasswordModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.15s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Form */}
+            <form onSubmit={handleSelfPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {selfPasswordError && (
+                <div style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  color: '#ef4444',
+                  fontSize: '0.82rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <AlertCircle size={16} />
+                  {selfPasswordError}
                 </div>
-              </div>
+              )}
               
-              <div className="modal-footer" style={{ marginTop: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569', textAlign: 'left' }}>Current Password *</label>
+                <input 
+                  type="password" 
+                  placeholder="Enter current password"
+                  value={selfCurrentPassword}
+                  onChange={(e) => setSelfCurrentPassword(e.target.value)}
+                  required
+                  style={{
+                    height: '40px',
+                    padding: '0 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#0ea5a4'}
+                  onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569', textAlign: 'left' }}>New Password *</label>
+                <input 
+                  type="password" 
+                  placeholder="Minimum 6 characters"
+                  value={selfNewPassword}
+                  onChange={(e) => setSelfNewPassword(e.target.value)}
+                  required
+                  style={{
+                    height: '40px',
+                    padding: '0 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#0ea5a4'}
+                  onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: '#475569', textAlign: 'left' }}>Confirm New Password *</label>
+                <input 
+                  type="password" 
+                  placeholder="Confirm new password"
+                  value={selfConfirmPassword}
+                  onChange={(e) => setSelfConfirmPassword(e.target.value)}
+                  required
+                  style={{
+                    height: '40px',
+                    padding: '0 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                    transition: 'border-color 0.15s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#0ea5a4'}
+                  onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '10px' }}>
                 <button 
                   type="button" 
-                  className="cancel-btn" 
-                  onClick={() => setIsPasswordModalOpen(false)}
-                  disabled={passwordModalLoading}
+                  onClick={() => setIsSelfPasswordModalOpen(false)}
+                  disabled={selfPasswordLoading}
+                  style={{
+                    height: '40px',
+                    padding: '0 18px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    background: 'transparent',
+                    color: '#475569',
+                    fontWeight: '600',
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f8fafc';
+                    e.currentTarget.style.borderColor = '#94a3b8';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                  }}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
-                  className="save-btn"
-                  disabled={passwordModalLoading}
+                  disabled={selfPasswordLoading}
+                  style={{
+                    height: '40px',
+                    padding: '0 18px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    background: 'linear-gradient(135deg, #037172 0%, #0d9488 100%)',
+                    color: '#ffffff',
+                    fontWeight: '600',
+                    fontSize: '0.88rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(3, 113, 114, 0.25)',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                 >
-                  {passwordModalLoading ? 'Saving...' : 'Save Password'}
+                  {selfPasswordLoading ? 'Updating...' : 'Update Password'}
                 </button>
               </div>
             </form>

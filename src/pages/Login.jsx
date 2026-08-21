@@ -36,7 +36,8 @@ const Login = ({ onLoginSuccess }) => {
         const token = res.data.token;
 
         // Verify user is actually an admin!
-        if (userData.role !== 'admin') {
+        const allowedRoles = ['admin', 'super_admin', 'superadmin', 'super admin'];
+        if (!allowedRoles.includes(userData.role?.toLowerCase())) {
           setError('Access Denied: Admin privileges required to access this panel.');
           setLoading(false);
           return;

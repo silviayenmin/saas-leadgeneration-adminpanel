@@ -15,7 +15,8 @@ function App() {
       if (token) {
         try {
           const res = await api.get('/users/me');
-          if (res.data.success && res.data.data.role === 'admin') {
+          const allowedRoles = ['admin', 'super_admin', 'superadmin', 'super admin'];
+          if (res.data.success && allowedRoles.includes(res.data.data.role?.toLowerCase())) {
             setUser(res.data.data);
           } else {
             // Log out if user is no longer an admin
