@@ -1345,7 +1345,7 @@ const AdminPanel = ({ user, onLogout }) => {
               })()}
               {/* TAB 3: SUBSCRIPTIONS */}
               {activeTab === 'subscriptions' && (
-                <div className="tab-pane animate-fade-in">
+                <div className="tab-pane animate-fade-in user-directory-pane">
                   <div className="directory-header-row">
                     <div className="header-title-group">
                       <h2>Subscriptions</h2>
@@ -1615,7 +1615,7 @@ const AdminPanel = ({ user, onLogout }) => {
                 const paginatedLogs = filteredActivityLogs.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
 
                 return (
-                  <div className="tab-pane animate-fade-in">
+                  <div className="tab-pane animate-fade-in user-directory-pane">
                     <div className="directory-header-row">
                       <div className="header-title-group">
                         <h2>Activity Logs</h2>

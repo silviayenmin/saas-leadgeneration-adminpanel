@@ -1738,7 +1738,7 @@
 // Work Area Content Grid
 .admin-content {
   flex: 1;
-  padding: $spacing-xl;
+  padding: 16px 24px 24px 24px;
   background-color: $bg-main;
 }
 
@@ -2291,7 +2291,7 @@
 // USER DIRECTORY LAYOUT & FILTERS
 // ==========================================
 .directory-header-row {
-  margin-bottom: $spacing-md;
+  margin-bottom: 0;
 
   h2 {
     font-size: 1.5rem;
@@ -2304,6 +2304,10 @@
     font-size: 0.9rem;
     color: $text-muted;
   }
+}
+
+.directory-header-row + .table-container {
+  margin-top: 12px !important;
 }
 
 .user-directory-pane {
