@@ -3,6 +3,7 @@ import {
   Users, 
   Search, 
   AlertTriangle, 
+  ChevronDown,
   MapPin, 
   Trash2, 
   Key, 
@@ -102,11 +103,49 @@ const enrichUserWithMockDetails = (u) => {
       renewalDate: mockRenewalDate
     },
     recentActivity: u.recentActivity || [
-      { id: '1', action: 'Logged In', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toLocaleString() },
-      { id: '2', action: 'API Key Created', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toLocaleString() },
-      { id: '3', action: 'Updated Lead Config', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toLocaleString() }
+      { id: `${u.id}-1`, action: 'Logged In', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toLocaleString() },
+      { id: `${u.id}-2`, action: 'API Key Created', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toLocaleString() },
+      { id: `${u.id}-3`, action: 'Updated Lead Config', ipAddress: '192.168.1.45', device: 'Chrome - macOS', timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toLocaleString() }
     ]
   };
+};
+
+const CustomSelect = ({ value, onChange, options, className = '' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value) || options[0];
+
+  return (
+    <div 
+      className={`custom-select-wrapper ${isOpen ? 'is-open' : ''} ${className}`}
+      tabIndex={0}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+          setIsOpen(false);
+        }
+      }}
+    >
+      <div className="custom-select-trigger" onClick={() => setIsOpen(!isOpen)}>
+        <span>{selectedOption ? selectedOption.label : ''}</span>
+        <ChevronDown size={14} className={`arrow-icon ${isOpen ? 'rotate' : ''}`} />
+      </div>
+      {isOpen && (
+        <div className="custom-select-options-list">
+          {options.map(opt => (
+            <div 
+              key={opt.value} 
+              className={`custom-select-option-item ${value === opt.value ? 'is-selected' : ''}`}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const AdminPanel = ({ user, onLogout }) => {
@@ -934,11 +973,15 @@ const AdminPanel = ({ user, onLogout }) => {
                               </div>
                             </div>
                             <div className="range-dropdown">
-                              <select value={chartRange} onChange={(e) => setChartRange(e.target.value)}>
-                                <option value="daily">Last 7 days</option>
-                                <option value="weekly">Last 4 weeks</option>
-                                <option value="annual">This year</option>
-                              </select>
+                              <CustomSelect 
+                                value={chartRange} 
+                                onChange={setChartRange} 
+                                options={[
+                                  { value: 'daily', label: 'Last 7 days' },
+                                  { value: 'weekly', label: 'Last 4 weeks' },
+                                  { value: 'annual', label: 'This year' }
+                                ]} 
+                              />
                             </div>
                           </div>
                           
@@ -1131,7 +1174,7 @@ const AdminPanel = ({ user, onLogout }) => {
               )}
               {/* TAB 2: USERS LIST (USER DIRECTORY) */}
               {activeTab === 'users' && (() => {
-                const itemsPerPage = 6;
+                const itemsPerPage = 10;
                 const totalUsersCount = filteredUsersForDirectory.length;
                 const totalPages = Math.ceil(totalUsersCount / itemsPerPage) || 1;
                 
@@ -1174,34 +1217,34 @@ const AdminPanel = ({ user, onLogout }) => {
 
                         <div className="filters-group-row">
                           <div className="filter-dropdown-wrapper">
-                            <select 
-                              id="verify-filter"
+                            <CustomSelect 
                               value={verificationFilter} 
-                              onChange={(e) => {
-                                setVerificationFilter(e.target.value);
-                                setCurrentPage(1); // Reset page
+                              onChange={(val) => {
+                                setVerificationFilter(val);
+                                setCurrentPage(1);
                               }}
-                            >
-                              <option value="all">All Payment States</option>
-                              <option value="LINKED">Card Linked</option>
-                              <option value="UNLINKED">No Card Linked</option>
-                            </select>
+                              options={[
+                                { value: 'all', label: 'All Payment States' },
+                                { value: 'LINKED', label: 'Card Linked' },
+                                { value: 'UNLINKED', label: 'No Card Linked' }
+                              ]}
+                            />
                           </div>
 
                           <div className="filter-dropdown-wrapper">
-                            <select 
-                              id="role-filter"
+                            <CustomSelect 
                               value={roleFilter} 
-                              onChange={(e) => {
-                                setRoleFilter(e.target.value);
-                                setCurrentPage(1); // Reset page
+                              onChange={(val) => {
+                                setRoleFilter(val);
+                                setCurrentPage(1);
                               }}
-                            >
-                              <option value="all">All Roles</option>
-                              <option value="ADMIN">Admin</option>
-                              <option value="EDITOR">Editor</option>
-                              <option value="MEMBER">Member</option>
-                            </select>
+                              options={[
+                                { value: 'all', label: 'All Roles' },
+                                { value: 'ADMIN', label: 'Admin' },
+                                { value: 'EDITOR', label: 'Editor' },
+                                { value: 'MEMBER', label: 'Member' }
+                              ]}
+                            />
                           </div>
                         </div>
                       </div>
@@ -1303,6 +1346,12 @@ const AdminPanel = ({ user, onLogout }) => {
               {/* TAB 3: SUBSCRIPTIONS */}
               {activeTab === 'subscriptions' && (
                 <div className="tab-pane animate-fade-in">
+                  <div className="directory-header-row">
+                    <div className="header-title-group">
+                      <h2>Subscriptions</h2>
+                      <p className="subtitle">Manage billing plans, active subscriptions, and pricing models</p>
+                    </div>
+                  </div>
                   <div className="table-container">
                     <div className="table-header-bar subscription-header-bar">
                       <div className="header-tabs-group">
@@ -1567,24 +1616,30 @@ const AdminPanel = ({ user, onLogout }) => {
 
                 return (
                   <div className="tab-pane animate-fade-in">
+                    <div className="directory-header-row">
+                      <div className="header-title-group">
+                        <h2>Activity Logs</h2>
+                        <p className="subtitle">Monitor system actions, administrative changes, and database operations</p>
+                      </div>
+                    </div>
                     <div className="table-container">
                       <div className="table-header-bar">
                         <h2>System Activity Logs ({filteredActivityLogs.length})</h2>
-                        <div className="directory-controls-bar" style={{ gap: '16px', display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                        <div className="activity-controls-bar" style={{ gap: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                           <div className="control-group">
-                            <label>Filter Action Type</label>
-                            <select 
+                            <CustomSelect 
                               value={activityFilter} 
-                              onChange={(e) => {
-                                setActivityFilter(e.target.value);
+                              onChange={(val) => {
+                                setActivityFilter(val);
                                 setActivityPage(1);
                               }}
-                            >
-                              <option value="all">All Events</option>
-                              <option value="Logged In">Logged In</option>
-                              <option value="API Key Created">API Key Created</option>
-                              <option value="Updated Lead Config">Updated Lead Config</option>
-                            </select>
+                              options={[
+                                { value: 'all', label: 'All Events' },
+                                { value: 'Logged In', label: 'Logged In' },
+                                { value: 'API Key Created', label: 'API Key Created' },
+                                { value: 'Updated Lead Config', label: 'Updated Lead Config' }
+                              ]}
+                            />
                           </div>
                           <div className="search-input-wrapper">
                             <Search size={16} />
@@ -1615,7 +1670,7 @@ const AdminPanel = ({ user, onLogout }) => {
                           <tbody>
                             {paginatedLogs.length > 0 ? (
                               paginatedLogs.map((log, idx) => (
-                                <tr key={log.id || idx}>
+                                <tr key={`${log.userId}-${log.id || idx}-${idx}`}>
                                   <td>
                                     <div className="user-profile-cell">
                                       <div className="avatar-small">{log.userName ? log.userName.charAt(0).toUpperCase() : 'U'}</div>
