@@ -182,6 +182,8 @@ const AdminPanel = ({ user, onLogout }) => {
   // Global pricing plans management states
   const [plansList, setPlansList] = useState([]);
   const [subTab, setSubTab] = useState('subscribers'); // 'subscribers', 'plans'
+  const [userSubTab, setUserSubTab] = useState('customers'); // 'customers', 'admins'
+  const [activeStatusDropdownUserId, setActiveStatusDropdownUserId] = useState(null);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   
@@ -1175,7 +1177,13 @@ const AdminPanel = ({ user, onLogout }) => {
               {/* TAB 2: USERS LIST (USER DIRECTORY) */}
               {activeTab === 'users' && (() => {
                 const itemsPerPage = 10;
-                const totalUsersCount = filteredUsersForDirectory.length;
+                
+                // Split by Sub-Tab: Customers vs Admins
+                const usersToShow = userSubTab === 'customers' 
+                  ? filteredUsersForDirectory.filter(u => u.role !== 'ADMIN')
+                  : filteredUsersForDirectory.filter(u => u.role === 'ADMIN');
+                  
+                const totalUsersCount = usersToShow.length;
                 const totalPages = Math.ceil(totalUsersCount / itemsPerPage) || 1;
                 
                 // Adjust current page if filters change and make count less
@@ -1183,7 +1191,7 @@ const AdminPanel = ({ user, onLogout }) => {
                 
                 const startIndex = totalUsersCount === 0 ? 0 : (activePage - 1) * itemsPerPage + 1;
                 const endIndex = Math.min(activePage * itemsPerPage, totalUsersCount);
-                const paginatedUsers = filteredUsersForDirectory.slice(
+                const paginatedUsers = usersToShow.slice(
                   (activePage - 1) * itemsPerPage,
                   activePage * itemsPerPage
                 );
@@ -1200,6 +1208,30 @@ const AdminPanel = ({ user, onLogout }) => {
                     </div>
 
                     <div className="table-container">
+                      {/* Sub-Tab Bar for Customers vs Admins */}
+                      <div className="table-header-bar subscription-header-bar">
+                        <div className="header-tabs-group">
+                          <button 
+                            className={`sub-tab-btn ${userSubTab === 'customers' ? 'active' : ''}`}
+                            onClick={() => {
+                              setUserSubTab('customers');
+                              setCurrentPage(1);
+                            }}
+                          >
+                            Customers ({usersList.filter(u => u.role !== 'ADMIN').length})
+                          </button>
+                          <button 
+                            className={`sub-tab-btn ${userSubTab === 'admins' ? 'active' : ''}`}
+                            onClick={() => {
+                              setUserSubTab('admins');
+                              setCurrentPage(1);
+                            }}
+                          >
+                            Admins ({usersList.filter(u => u.role === 'ADMIN').length})
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Controls & Filters */}
                       <div className="directory-controls-bar">
                         <div className="search-input-wrapper">
@@ -1231,21 +1263,22 @@ const AdminPanel = ({ user, onLogout }) => {
                             />
                           </div>
 
-                          <div className="filter-dropdown-wrapper">
-                            <CustomSelect 
-                              value={roleFilter} 
-                              onChange={(val) => {
-                                setRoleFilter(val);
-                                setCurrentPage(1);
-                              }}
-                              options={[
-                                { value: 'all', label: 'All Roles' },
-                                { value: 'ADMIN', label: 'Admin' },
-                                { value: 'EDITOR', label: 'Editor' },
-                                { value: 'MEMBER', label: 'Member' }
-                              ]}
-                            />
-                          </div>
+                          {userSubTab === 'customers' && (
+                            <div className="filter-dropdown-wrapper">
+                              <CustomSelect 
+                                value={roleFilter} 
+                                onChange={(val) => {
+                                  setRoleFilter(val);
+                                  setCurrentPage(1);
+                                }}
+                                options={[
+                                  { value: 'all', label: 'All Roles' },
+                                  { value: 'EDITOR', label: 'Editor' },
+                                  { value: 'MEMBER', label: 'Member' }
+                                ]}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1259,7 +1292,7 @@ const AdminPanel = ({ user, onLogout }) => {
                               <th>Role</th>
                               <th>Join Date</th>
                               <th>Status</th>
-                              <th>Payment Status</th>
+                              {userSubTab === 'customers' && <th>Payment Status</th>}
                             </tr>
                           </thead>
                           <tbody>
@@ -1267,8 +1300,12 @@ const AdminPanel = ({ user, onLogout }) => {
                               paginatedUsers.map(u => (
                                 <tr 
                                   key={u.id} 
-                                  onClick={() => setSelectedUser(u)} 
-                                  className="clickable-row"
+                                  onClick={() => {
+                                    if (userSubTab === 'customers') {
+                                      setSelectedUser(u);
+                                    }
+                                  }} 
+                                  className={userSubTab === 'customers' ? 'clickable-row' : ''}
                                 >
                                   <td>
                                     <div className="user-profile-cell">
@@ -1287,21 +1324,71 @@ const AdminPanel = ({ user, onLogout }) => {
                                   </td>
                                   <td>{u.joinDate}</td>
                                   <td>
-                                    <span className={`badge status-${u.status.toLowerCase()}`}>
-                                      {u.status}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    {u.paymentMethod ? (
-                                      <span className="badge verification-verified" style={{ fontSize: '0.78rem', textTransform: 'none' }}>
-                                        {u.paymentMethod.cardBrand} •••• {u.paymentMethod.last4}
-                                      </span>
+                                    {userSubTab === 'admins' ? (
+                                      <div 
+                                        className={`inline-status-dropdown-wrapper ${activeStatusDropdownUserId === u.id ? 'is-open' : ''}`}
+                                        tabIndex={0}
+                                        onBlur={(e) => {
+                                          if (!e.currentTarget.contains(e.relatedTarget)) {
+                                            setActiveStatusDropdownUserId(null);
+                                          }
+                                        }}
+                                      >
+                                        <span 
+                                          className={`badge status-${u.status.toLowerCase()} toggle-status-badge`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveStatusDropdownUserId(activeStatusDropdownUserId === u.id ? null : u.id);
+                                          }}
+                                        >
+                                          {u.status} <ChevronDown size={10} style={{ marginLeft: '4px' }} />
+                                        </span>
+                                        {activeStatusDropdownUserId === u.id && (
+                                          <div className="inline-status-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                                            <div 
+                                              className={`status-menu-item ${u.status === 'ACTIVE' ? 'selected' : ''}`}
+                                              onClick={() => {
+                                                if (u.status !== 'ACTIVE') {
+                                                  toggleUserStatus(u.id);
+                                                }
+                                                setActiveStatusDropdownUserId(null);
+                                              }}
+                                            >
+                                              <span className="status-dot dot-active"></span> Active
+                                            </div>
+                                            <div 
+                                              className={`status-menu-item ${u.status === 'SUSPENDED' ? 'selected' : ''}`}
+                                              onClick={() => {
+                                                if (u.status !== 'SUSPENDED') {
+                                                  toggleUserStatus(u.id);
+                                                }
+                                                setActiveStatusDropdownUserId(null);
+                                              }}
+                                            >
+                                              <span className="status-dot dot-suspended"></span> Suspended
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
                                     ) : (
-                                      <span className="badge verification-rejected" style={{ fontSize: '0.78rem' }}>
-                                        No Card
+                                      <span className={`badge status-${u.status.toLowerCase()}`}>
+                                        {u.status}
                                       </span>
                                     )}
                                   </td>
+                                  {userSubTab === 'customers' && (
+                                    <td>
+                                      {u.paymentMethod ? (
+                                        <span className="badge verification-verified" style={{ fontSize: '0.78rem', textTransform: 'none' }}>
+                                          {u.paymentMethod.cardBrand} •••• {u.paymentMethod.last4}
+                                        </span>
+                                      ) : (
+                                        <span className="badge verification-rejected" style={{ fontSize: '0.78rem' }}>
+                                          No Card
+                                        </span>
+                                      )}
+                                    </td>
+                                  )}
                                 </tr>
                               ))
                             ) : (

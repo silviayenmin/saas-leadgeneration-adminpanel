@@ -3444,3 +3444,103 @@ select {
     }
   }
 }
+
+.inline-status-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
+  outline: none;
+
+  .toggle-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      filter: brightness(0.95);
+      transform: translateY(-1px);
+    }
+  }
+
+  .inline-status-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: $card;
+    border: 1px solid $border-color;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 100;
+    min-width: 120px;
+    overflow: hidden;
+    animation: fadeIn 0.12s ease-out;
+
+    .status-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: $text-secondary;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+
+      &:hover {
+        background-color: rgba(14, 165, 164, 0.08);
+        color: #0ea5a4;
+      }
+
+      &.selected {
+        background-color: rgba(14, 165, 164, 0.04);
+        color: #0ea5a4;
+        font-weight: 700;
+      }
+
+      .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+        
+        &.dot-active {
+          background-color: #22c55e;
+          box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+        }
+        
+        &.dot-suspended {
+          background-color: #ef4444;
+          box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+        }
+      }
+    }
+  }
+}
+
+[data-theme='dark'] {
+  .inline-status-dropdown-wrapper {
+    .inline-status-dropdown-menu {
+      background: #1e293b;
+      border-color: rgba(14, 165, 164, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+
+      .status-menu-item {
+        color: #cbd5e1;
+
+        &:hover {
+          background-color: rgba(14, 165, 164, 0.15);
+          color: #2dd4bf;
+        }
+
+        &.selected {
+          background-color: rgba(14, 165, 164, 0.1);
+          color: #2dd4bf;
+        }
+      }
+    }
+  }
+}
