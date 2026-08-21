@@ -184,6 +184,17 @@ const AdminPanel = ({ user, onLogout }) => {
   const [subTab, setSubTab] = useState('subscribers'); // 'subscribers', 'plans'
   const [userSubTab, setUserSubTab] = useState('customers'); // 'customers', 'admins'
   const [activeStatusDropdownUserId, setActiveStatusDropdownUserId] = useState(null);
+  const [isCreateAdminModalOpen, setIsCreateAdminModalOpen] = useState(false);
+  const [adminNameInput, setAdminNameInput] = useState('');
+  const [adminEmailInput, setAdminEmailInput] = useState('');
+  const [adminRoleInput, setAdminRoleInput] = useState('admin');
+  const [adminModalLoading, setAdminModalLoading] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordUserId, setPasswordUserId] = useState('');
+  const [passwordUserName, setPasswordUserName] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [passwordModalLoading, setPasswordModalLoading] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   
@@ -381,6 +392,82 @@ const AdminPanel = ({ user, onLogout }) => {
       return u;
     }));
     setSuccessMsg(`User successfully ${nextStatus === 'ACTIVE' ? 'activated' : 'suspended'}.`);
+  };
+
+  const handleCreateAdmin = async (e) => {
+    e.preventDefault();
+    if (!adminNameInput.trim() || !adminEmailInput.trim()) {
+      setErrorMsg('Please fill in all required fields.');
+      return;
+    }
+    
+    setAdminModalLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    try {
+      const response = await api.post('/admin/create-admin', {
+        fullName: adminNameInput.trim(),
+        email: adminEmailInput.trim().toLowerCase(),
+        role: adminRoleInput
+      });
+      
+      if (response.data?.success) {
+        setSuccessMsg(response.data.message || 'Admin created successfully and credentials email sent.');
+        
+        // Refresh users list from database
+        fetchUsers();
+        
+        // Reset form and close modal
+        setAdminNameInput('');
+        setAdminEmailInput('');
+        setAdminRoleInput('admin');
+        setIsCreateAdminModalOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.response?.data?.detail || 'Failed to create administrator account.');
+    } finally {
+      setAdminModalLoading(false);
+    }
+  };
+
+  const handleSavePassword = async (e) => {
+    e.preventDefault();
+    if (!newPasswordInput.trim() || !confirmPasswordInput.trim()) {
+      setErrorMsg('Please fill in all fields.');
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+    
+    setPasswordModalLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    
+    try {
+      const response = await api.put(`/admin/users/${passwordUserId}/password`, {
+        password: newPasswordInput.trim()
+      });
+      
+      if (response.data?.success) {
+        setSuccessMsg(response.data.message || 'Password changed successfully.');
+        
+        // Reset form and close modal
+        setNewPasswordInput('');
+        setConfirmPasswordInput('');
+        setPasswordUserId('');
+        setPasswordUserName('');
+        setIsPasswordModalOpen(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.response?.data?.detail || 'Failed to update user password.');
+    } finally {
+      setPasswordModalLoading(false);
+    }
   };
 
   const handleTogglePaymentCard = async () => {
@@ -797,18 +884,7 @@ const AdminPanel = ({ user, onLogout }) => {
         {/* Header Bar */}
         <header className="admin-header">
           <div className="header-left-group">
-            <div className="search-bar">
-              <Search size={16} />
-              <input 
-                type="text" 
-                placeholder="Search users, leads, scans, logs..." 
-                value={activeTab === 'users' || activeTab === 'subscriptions' || activeTab === 'activity' ? userSearch : (activeTab === 'scans' ? scanSearch : '')}
-                onChange={(e) => {
-                  if (activeTab === 'users' || activeTab === 'subscriptions' || activeTab === 'activity') setUserSearch(e.target.value);
-                  if (activeTab === 'scans') setScanSearch(e.target.value);
-                }}
-              />
-            </div>
+            {/* Global Search Bar Removed */}
           </div>
 
           <div className="header-right-group">
@@ -866,55 +942,43 @@ const AdminPanel = ({ user, onLogout }) => {
 
                   {/* Row 1: KPI Cards Grid */}
                   <div className="kpi-card-grid">
-                    <div className="dashboard-kpi-card card-blue">
-                      <div className="card-header">
-                        <div className="icon-wrapper">
-                          <Users size={20} />
-                        </div>
-                        <h3>Total Users</h3>
+                    <div className="dashboard-kpi-card">
+                      <div className="icon-wrapper">
+                        <Users size={22} />
                       </div>
-                      <div className="value">{stats.totalUsers}</div>
-                      <div className="trend trend-up">
-                        <span>↑ 25% vs last 7 days</span>
+                      <div className="card-info">
+                        <div className="value">{stats.totalUsers}</div>
+                        <div className="label">Total Users</div>
                       </div>
                     </div>
 
-                    <div className="dashboard-kpi-card card-green">
-                      <div className="card-header">
-                        <div className="icon-wrapper">
-                          <Wallet size={20} />
-                        </div>
-                        <h3>Active Subscriptions</h3>
+                    <div className="dashboard-kpi-card">
+                      <div className="icon-wrapper">
+                        <Wallet size={22} />
                       </div>
-                      <div className="value">{stats.starterTiers + stats.agencyTiers}</div>
-                      <div className="trend trend-up">
-                        <span>↑ 20% vs last 7 days</span>
+                      <div className="card-info">
+                        <div className="value">{stats.starterTiers + stats.agencyTiers}</div>
+                        <div className="label">Active Subscriptions</div>
                       </div>
                     </div>
 
-                    <div className="dashboard-kpi-card card-purple">
-                      <div className="card-header">
-                        <div className="icon-wrapper">
-                          <Target size={20} />
-                        </div>
-                        <h3>Leads Discovered</h3>
+                    <div className="dashboard-kpi-card">
+                      <div className="icon-wrapper">
+                        <Target size={22} />
                       </div>
-                      <div className="value">{stats.totalLeads}</div>
-                      <div className="trend trend-up">
-                        <span>↑ 18% vs last 7 days</span>
+                      <div className="card-info">
+                        <div className="value">{stats.totalLeads}</div>
+                        <div className="label">Leads Discovered</div>
                       </div>
                     </div>
 
-                    <div className="dashboard-kpi-card card-orange">
-                      <div className="card-header">
-                        <div className="icon-wrapper">
-                          <Coins size={20} />
-                        </div>
-                        <h3>Credits Consumed</h3>
+                    <div className="dashboard-kpi-card">
+                      <div className="icon-wrapper">
+                        <Coins size={22} />
                       </div>
-                      <div className="value">{stats.totalCreditsUsed}</div>
-                      <div className="trend trend-up">
-                        <span>↑ 32% vs last 7 days</span>
+                      <div className="card-info">
+                        <div className="value">{stats.totalCreditsUsed}</div>
+                        <div className="label">Credits Consumed</div>
                       </div>
                     </div>
                   </div>
@@ -1248,20 +1312,22 @@ const AdminPanel = ({ user, onLogout }) => {
                         </div>
 
                         <div className="filters-group-row">
-                          <div className="filter-dropdown-wrapper">
-                            <CustomSelect 
-                              value={verificationFilter} 
-                              onChange={(val) => {
-                                setVerificationFilter(val);
-                                setCurrentPage(1);
-                              }}
-                              options={[
-                                { value: 'all', label: 'All Payment States' },
-                                { value: 'LINKED', label: 'Card Linked' },
-                                { value: 'UNLINKED', label: 'No Card Linked' }
-                              ]}
-                            />
-                          </div>
+                          {userSubTab === 'customers' && (
+                            <div className="filter-dropdown-wrapper">
+                              <CustomSelect 
+                                value={verificationFilter} 
+                                onChange={(val) => {
+                                  setVerificationFilter(val);
+                                  setCurrentPage(1);
+                                }}
+                                options={[
+                                  { value: 'all', label: 'All Payment States' },
+                                  { value: 'LINKED', label: 'Card Linked' },
+                                  { value: 'UNLINKED', label: 'No Card Linked' }
+                                ]}
+                              />
+                            </div>
+                          )}
 
                           {userSubTab === 'customers' && (
                             <div className="filter-dropdown-wrapper">
@@ -1279,6 +1345,32 @@ const AdminPanel = ({ user, onLogout }) => {
                               />
                             </div>
                           )}
+
+                          {userSubTab === 'admins' && (
+                            <button 
+                              type="button"
+                              className="add-plan-btn"
+                              onClick={() => setIsCreateAdminModalOpen(true)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                height: '38px',
+                                padding: '0 16px',
+                                border: 'none',
+                                borderRadius: '8px',
+                                background: '#0ea5a4',
+                                color: '#ffffff',
+                                fontWeight: '600',
+                                fontSize: '0.88rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 2px 6px rgba(14, 165, 164, 0.25)'
+                              }}
+                            >
+                              <Plus size={16} /> Create Admin
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -1293,6 +1385,7 @@ const AdminPanel = ({ user, onLogout }) => {
                               <th>Join Date</th>
                               <th>Status</th>
                               {userSubTab === 'customers' && <th>Payment Status</th>}
+                              {userSubTab === 'admins' && <th>Actions</th>}
                             </tr>
                           </thead>
                           <tbody>
@@ -1387,6 +1480,39 @@ const AdminPanel = ({ user, onLogout }) => {
                                           No Card
                                         </span>
                                       )}
+                                    </td>
+                                  )}
+                                  {userSubTab === 'admins' && (
+                                    <td>
+                                      <button 
+                                        type="button"
+                                        className="action-btn text-teal-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPasswordUserId(u.id);
+                                          setPasswordUserName(u.name || u.fullName);
+                                          setIsPasswordModalOpen(true);
+                                        }}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          color: '#0ea5a4',
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontSize: '0.8rem',
+                                          fontWeight: '600',
+                                          padding: '4px 8px',
+                                          borderRadius: '4px',
+                                          transition: 'all 0.15s ease'
+                                        }}
+                                        title="Change Password"
+                                        onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(14, 165, 164, 0.08)'}
+                                        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                                      >
+                                        <Key size={14} /> Change Password
+                                      </button>
                                     </td>
                                   )}
                                 </tr>
@@ -1824,6 +1950,192 @@ const AdminPanel = ({ user, onLogout }) => {
         </main>
       </div>
 
+      {/* CREATE ADMIN MODAL */}
+      {isCreateAdminModalOpen && (
+        <div className="modal-backdrop sub-modal-backdrop" onClick={() => setIsCreateAdminModalOpen(false)}>
+          <div className="modal-content pricing-plan-modal animate-slide-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h3>Create New Administrator</h3>
+              <button className="close-btn" onClick={() => setIsCreateAdminModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateAdmin}>
+              <div className="modal-body overflow-visible">
+                {errorMsg && (
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    color: '#ef4444',
+                    fontSize: '0.82rem',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <AlertCircle size={16} />
+                    {errorMsg}
+                  </div>
+                )}
+                <div className="form-group">
+                  <label>Full Name *</label>
+                  <input 
+                    type="text" 
+                    placeholder="Enter full name (e.g. John Doe)"
+                    value={adminNameInput}
+                    onChange={(e) => setAdminNameInput(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Email Address *</label>
+                  <input 
+                    type="email" 
+                    placeholder="Enter email address (e.g. john@mapflow.ai)"
+                    value={adminEmailInput}
+                    onChange={(e) => setAdminEmailInput(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Role *</label>
+                  <CustomSelect 
+                    value={adminRoleInput} 
+                    onChange={(val) => setAdminRoleInput(val)}
+                    options={[
+                      { value: 'admin', label: 'Admin' },
+                      { value: 'superadmin', label: 'Super Admin' }
+                    ]}
+                  />
+                  <small style={{ display: 'block', marginTop: '6px', color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem' }}>
+                    A secure random password will be generated automatically and sent to this email address.
+                  </small>
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="cancel-btn" 
+                  onClick={() => setIsCreateAdminModalOpen(false)}
+                  disabled={adminModalLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="save-btn"
+                  disabled={adminModalLoading}
+                >
+                  {adminModalLoading ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CHANGE PASSWORD MODAL */}
+      {isPasswordModalOpen && (
+        <div className="modal-backdrop sub-modal-backdrop" onClick={() => setIsPasswordModalOpen(false)}>
+          <div className="modal-content pricing-plan-modal animate-slide-in" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3>Change Password</h3>
+              <button className="close-btn" onClick={() => setIsPasswordModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSavePassword}>
+              <div className="modal-body overflow-visible">
+                {errorMsg && (
+                  <div style={{
+                    marginBottom: '16px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    color: '#ef4444',
+                    fontSize: '0.82rem',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <AlertCircle size={16} />
+                    {errorMsg}
+                  </div>
+                )}
+                <div className="user-details-summary" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div className="avatar-medium" style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    background: 'rgba(14, 165, 164, 0.1)',
+                    color: '#0ea5a4',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem'
+                  }}>{passwordUserName?.charAt(0).toUpperCase()}</div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700' }}>{passwordUserName}</h4>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)' }}>Reset login credentials</p>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>New Password *</label>
+                  <input 
+                    type="password" 
+                    placeholder="Enter new password (min 6 chars)"
+                    value={newPasswordInput}
+                    onChange={(e) => setNewPasswordInput(e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label>Confirm Password *</label>
+                  <input 
+                    type="password" 
+                    placeholder="Confirm new password"
+                    value={confirmPasswordInput}
+                    onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="modal-footer" style={{ marginTop: '16px' }}>
+                <button 
+                  type="button" 
+                  className="cancel-btn" 
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  disabled={passwordModalLoading}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="save-btn"
+                  disabled={passwordModalLoading}
+                >
+                  {passwordModalLoading ? 'Saving...' : 'Save Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* CREDIT ADJUSTMENT MODAL */}
       {selectedUserForCredits && (
         <div className="modal-backdrop sub-modal-backdrop" onClick={() => setSelectedUserForCredits(null)}>
@@ -2186,7 +2498,6 @@ const AdminPanel = ({ user, onLogout }) => {
                     disabled={!!editingPlan}
                     required
                   />
-                  <small className="field-hint">Must be a unique lowercase identifier. Cannot be changed later.</small>
                 </div>
 
                 <div className="form-group">
@@ -2235,7 +2546,6 @@ const AdminPanel = ({ user, onLogout }) => {
                     onChange={(e) => setPlanBadge(e.target.value)}
                     placeholder="e.g. Popular, Best Value, Super Discount"
                   />
-                  <small className="field-hint">Displays a custom badge over the card on the client pricing page.</small>
                 </div>
 
                 <div className="form-group checkbox-group">
@@ -2260,7 +2570,6 @@ const AdminPanel = ({ user, onLogout }) => {
                     placeholder="e.g. Unlimited scans, CSV Export, Priority Support"
                     rows={4}
                   />
-                  <small className="field-hint">Enter features separated by commas.</small>
                 </div>
               </div>
               <div className="modal-footer">

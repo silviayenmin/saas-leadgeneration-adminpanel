@@ -26,7 +26,7 @@
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
 
   .sidebar-brand {
-    padding: $spacing-xl $spacing-md;
+    padding: 16px $spacing-md;
     border-bottom: 1px solid $border-color;
     display: flex;
     align-items: center;
@@ -1360,7 +1360,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: $spacing-md $spacing-lg;
+    padding: 22px 24px;
     border-bottom: 1px solid $border-color;
     background: rgba($surface, 0.4);
 
@@ -1393,8 +1393,13 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-height: 60vh;
+    max-height: 65vh;
     overflow-y: auto;
+
+    &.overflow-visible {
+      overflow: visible !important;
+      overflow-y: visible !important;
+    }
 
     .form-group {
       display: flex;
@@ -1409,7 +1414,7 @@
         letter-spacing: 0.5px;
       }
 
-      input[type="text"], input[type="number"], textarea {
+      input[type="text"], input[type="email"], input[type="password"], input[type="number"], select, textarea {
         background: rgba($surface, 0.5);
         border: 1px solid $border-color;
         border-radius: $radius-sm;
@@ -1462,7 +1467,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    padding: $spacing-md $spacing-lg;
+    padding: 20px 24px;
     border-top: 1px solid $border-color;
     background: rgba($surface, 0.4);
 
@@ -1586,7 +1591,7 @@
 // HEADER BAR STYLE
 // ==========================================
 .admin-header {
-  height: 70px;
+  height: 64px;
   padding: 0 $spacing-xl;
   background: $surface;
   border-bottom: 1px solid $border-color;
@@ -1800,58 +1805,50 @@
   background: $surface;
   border: 1px solid $border-color;
   border-radius: 16px;
-  padding: $spacing-xl $spacing-lg;
+  padding: 16px 20px;
   box-shadow: $shadow-sm;
   display: flex;
-  flex-direction: column;
-  position: relative;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
   transition: all $transition-base;
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: $shadow-md;
-    border-color: rgba(59, 130, 246, 0.2);
+    border-color: rgba(3, 113, 114, 0.2);
   }
 
-  .card-header {
+  .icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(3, 113, 114, 0.08) !important;
+    color: #037172 !important;
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: $spacing-sm;
+    justify-content: center;
+    flex-shrink: 0;
+  }
 
-    .icon-wrapper {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: rgba(3, 113, 114, 0.08) !important;
-      color: #037172 !important;
-      @include flex-center;
-      flex-shrink: 0;
+  .card-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .value {
+      font-size: 1.55rem;
+      font-weight: 750;
+      color: $text-primary;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      margin-bottom: 1px;
     }
 
-    h3 {
-      font-size: 0.82rem;
-      font-weight: 700;
+    .label {
+      font-size: 0.85rem;
+      font-weight: 500;
       color: $text-muted;
-      text-transform: capitalize;
-    }
-  }
-
-  .value {
-    font-size: 2rem;
-    font-weight: 800;
-    color: $text-primary;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    margin-bottom: 6px;
-  }
-
-  .trend {
-    font-size: 0.72rem;
-    font-weight: 600;
-    
-    &.trend-up {
-      color: #22C55E;
     }
   }
 }
@@ -3274,7 +3271,7 @@
   position: relative;
   flex: 1;
   min-width: 200px;
-  max-width: 320px;
+  max-width: 100%;
 
   svg {
     position: absolute;
@@ -3413,6 +3410,12 @@ select {
         color: #ffffff;
       }
     }
+  }
+
+  &.open-up .custom-select-options-list {
+    top: auto;
+    bottom: calc(100% + 6px);
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.12);
   }
 }
 
