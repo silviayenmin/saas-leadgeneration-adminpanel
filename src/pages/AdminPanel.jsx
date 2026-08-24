@@ -179,7 +179,7 @@ const AdminPanel = ({ user, onLogout }) => {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionReasonInput, setRejectionReasonInput] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activityFilter, setActivityFilter] = useState('all'); // 'all', 'Logged In', 'API Key Created', 'Updated Lead Config'
+  const [activityUserRoleFilter, setActivityUserRoleFilter] = useState('all'); // 'all', 'admin', 'user'
   const [activityPage, setActivityPage] = useState(1);
 
   // Global pricing plans management states
@@ -875,9 +875,17 @@ const AdminPanel = ({ user, onLogout }) => {
     const deviceMatch = log.device?.toLowerCase().includes(searchString) || false;
     const matchesSearch = !userSearch || nameMatch || emailMatch || actionMatch || ipMatch || deviceMatch;
 
-    const matchesActionFilter = activityFilter === 'all' || log.action === activityFilter;
+    const matchedUser = usersList.find(u => u.id === log.userId || u.email === log.userEmail);
+    const isLogAdmin = log.userId === 'admin' || 
+                        log.userEmail?.includes('admin@mapflow.ai') || 
+                        log.userName?.toLowerCase().includes('admin') ||
+                        (matchedUser && (matchedUser.role === 'ADMIN' || matchedUser.role?.toLowerCase() === 'admin'));
 
-    return matchesSearch && matchesActionFilter;
+    const matchesUserRoleFilter = activityUserRoleFilter === 'all' || 
+                                  (activityUserRoleFilter === 'admin' && isLogAdmin) || 
+                                  (activityUserRoleFilter === 'user' && !isLogAdmin);
+
+    return matchesSearch && matchesUserRoleFilter;
   });
 
   return (
@@ -1996,19 +2004,19 @@ const AdminPanel = ({ user, onLogout }) => {
                         <div className="activity-controls-bar" style={{ gap: '16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                           <div className="control-group">
                             <CustomSelect 
-                              value={activityFilter} 
+                              value={activityUserRoleFilter} 
                               onChange={(val) => {
-                                setActivityFilter(val);
+                                setActivityUserRoleFilter(val);
                                 setActivityPage(1);
                               }}
                               options={[
-                                { value: 'all', label: 'All Events' },
-                                { value: 'Logged In', label: 'Logged In' },
-                                { value: 'API Key Created', label: 'API Key Created' },
-                                { value: 'Updated Lead Config', label: 'Updated Lead Config' }
+                                { value: 'all', label: 'All Roles' },
+                                { value: 'admin', label: 'Admins Only' },
+                                { value: 'user', label: 'Users Only' }
                               ]}
                             />
                           </div>
+
                           <div className="search-input-wrapper">
                             <Search size={16} />
                             <input 
