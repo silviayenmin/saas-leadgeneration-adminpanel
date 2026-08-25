@@ -3651,3 +3651,187 @@ select {
   to { opacity: 1; }
 }
 
+// ==========================================
+// AI & API GLOBAL SETTINGS FORM STYLING
+// ==========================================
+.settings-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 24px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 24px auto 0 auto;
+}
+
+.settings-card-panel {
+  background: $card;
+  border: 1px solid $border-color;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.01);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  .card-panel-header {
+    padding: 24px;
+    border-bottom: 1px solid $border-color;
+    
+    h3 {
+      margin: 0 0 6px 0;
+      font-size: 1.08rem;
+      font-weight: 700;
+      color: $text-primary;
+    }
+    
+    p {
+      margin: 0;
+      font-size: 0.82rem;
+      color: $text-muted;
+      line-height: 1.4;
+    }
+  }
+  
+  .card-panel-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    flex-grow: 1;
+  }
+  
+  .card-panel-footer {
+    padding: 16px 24px;
+    background: rgba($surface, 0.4);
+    border-top: 1px solid $border-color;
+    display: flex;
+    justify-content: flex-end;
+    
+    .panel-save-btn {
+      height: 38px;
+      padding: 0 20px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #037172 0%, #0d9488 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(3, 113, 114, 0.2);
+      transition: all 0.2s ease;
+      
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(3, 113, 114, 0.28);
+      }
+      
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+    }
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    
+    label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: $text-secondary;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    textarea {
+      background: $surface;
+      border: 1px solid $border-color;
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: $text-primary;
+      font-size: 0.9rem;
+      font-weight: 600;
+      outline: none;
+      transition: all 0.2s ease;
+      width: 100%;
+      box-sizing: border-box;
+      
+      &::placeholder {
+        color: $text-muted;
+        font-weight: 500;
+      }
+      
+      &:focus {
+        border-color: $secondary;
+        box-shadow: 0 0 0 3px rgba(14, 165, 164, 0.1);
+        background: $card;
+      }
+    }
+
+    /* Range slider custom styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 99px;
+      background: rgba(14, 165, 164, 0.15);
+      outline: none;
+      margin: 12px 0;
+      
+      &::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: $secondary;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(14, 165, 164, 0.3);
+        transition: transform 0.1s ease;
+        
+        &:hover {
+          transform: scale(1.15);
+        }
+      }
+    }
+    
+    small {
+      font-size: 0.76rem;
+      color: $text-muted;
+      line-height: 1.4;
+      margin-top: 2px;
+    }
+  }
+}
+
+/* Dark mode overrides */
+[data-theme='dark'] {
+  .settings-card-panel {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.08);
+    
+    .card-panel-footer {
+      background: rgba(15, 23, 42, 0.2);
+    }
+    
+    .form-group input[type="text"],
+    .form-group input[type="password"],
+    .form-group input[type="number"],
+    .form-group textarea {
+      background: #0f172a;
+      border-color: rgba(255, 255, 255, 0.1);
+      
+      &:focus {
+        border-color: $secondary;
+        background: #1e293b;
+      }
+    }
+  }
+}
+

@@ -18,6 +18,7 @@ import {
   CheckCircle,
   AlertCircle,
   Smile,
+  Cpu,
   Zap,
   Award,
   Clock,
@@ -178,6 +179,18 @@ const AdminPanel = ({ user, onLogout }) => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionReasonInput, setRejectionReasonInput] = useState('');
+
+  // Global settings form states
+  const [globalProvider, setGlobalProvider] = useState('groq');
+  const [globalModel, setGlobalModel] = useState('groq/compound-mini');
+  const [globalTemperature, setGlobalTemperature] = useState(0.7);
+  const [globalOllamaHost, setGlobalOllamaHost] = useState('http://localhost:11434');
+  const [globalGroqKey, setGlobalGroqKey] = useState('');
+  const [globalPlacesKey, setGlobalPlacesKey] = useState('');
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState('');
+  const [settingsError, setSettingsError] = useState('');
+  const [activeSettingsSubTab, setActiveSettingsSubTab] = useState('model'); // 'model', 'keys'
   const [currentPage, setCurrentPage] = useState(1);
   const [activityUserRoleFilter, setActivityUserRoleFilter] = useState('all'); // 'all', 'admin', 'user'
   const [activityPage, setActivityPage] = useState(1);
@@ -343,9 +356,53 @@ const AdminPanel = ({ user, onLogout }) => {
     }
   };
 
+  const fetchGlobalSettings = async () => {
+    try {
+      const res = await api.get(`/admin/settings?_t=${Date.now()}`);
+      if (res.data.success) {
+        const d = res.data.data;
+        setGlobalProvider(d.active_provider || 'groq');
+        setGlobalModel(d.model || 'groq/compound-mini');
+        setGlobalTemperature(d.temperature !== undefined ? d.temperature : 0.7);
+        setGlobalOllamaHost(d.ollama_host || 'http://localhost:11434');
+        setGlobalGroqKey(d.groq_api_key || '');
+        setGlobalPlacesKey(d.google_places_api_key || '');
+      }
+    } catch (err) {
+      console.error('Failed to load global settings:', err);
+    }
+  };
+
+  const handleSaveSettingsSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setSettingsLoading(true);
+    setSettingsSuccess('');
+    setSettingsError('');
+    try {
+      const res = await api.post('/admin/settings', {
+        active_provider: globalProvider,
+        model: globalModel,
+        temperature: parseFloat(globalTemperature),
+        ollama_host: globalOllamaHost,
+        groq_api_key: globalGroqKey,
+        google_places_api_key: globalPlacesKey
+      });
+      if (res.data.success) {
+        setSettingsSuccess('Global configurations saved successfully.');
+      } else {
+        setSettingsError('Failed to save settings.');
+      }
+    } catch (err) {
+      console.error(err);
+      setSettingsError(err.response?.data?.detail || 'An error occurred while saving.');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
   const loadData = async () => {
     setLoading(true);
-    await Promise.all([fetchStats(), fetchUsers(), fetchScans(), fetchPlans(), fetchActivities()]);
+    await Promise.all([fetchStats(), fetchUsers(), fetchScans(), fetchPlans(), fetchActivities(), fetchGlobalSettings()]);
     setLoading(false);
   };
 
@@ -877,7 +934,7 @@ const AdminPanel = ({ user, onLogout }) => {
 
     const matchedUser = usersList.find(u => u.id === log.userId || u.email === log.userEmail);
     const isLogAdmin = log.userId === 'admin' || 
-                        log.userEmail?.includes('admin@mapflow.ai') || 
+                        log.userEmail?.includes('admin@leadgen.ai') || 
                         log.userName?.toLowerCase().includes('admin') ||
                         (matchedUser && (matchedUser.role === 'ADMIN' || matchedUser.role?.toLowerCase() === 'admin'));
 
@@ -898,7 +955,7 @@ const AdminPanel = ({ user, onLogout }) => {
             <div className="brand-icon">
               <Sparkles size={20} />
             </div>
-            <span className="brand-text">MAPFLOW AI</span>
+            <span className="brand-text">LEADGEN AI</span>
           </div>
           <span className="admin-badge-pill">ADMIN</span>
         </div>
@@ -949,6 +1006,17 @@ const AdminPanel = ({ user, onLogout }) => {
             <Clock size={18} />
             <span>Activity Logs</span>
           </button>
+
+          <button 
+            className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('settings');
+              setSidebarOpen(false);
+            }}
+          >
+            <Key size={18} />
+            <span>AI & API Settings</span>
+          </button>
         </nav>
 
         <div className="sidebar-footer">
@@ -956,7 +1024,7 @@ const AdminPanel = ({ user, onLogout }) => {
             <div className="avatar">A</div>
             <div className="details">
               <div className="name">{user?.fullName || 'Administrator'}</div>
-              <div className="email">{user?.email || 'admin@mapflow.ai'}</div>
+              <div className="email">{user?.email || 'admin@leadgen.ai'}</div>
             </div>
           </div>
           <button className="logout-btn" onClick={onLogout} title="Log Out of Console">
@@ -2108,6 +2176,170 @@ const AdminPanel = ({ user, onLogout }) => {
                   </div>
                 );
               })()}
+
+              {activeTab === 'settings' && (
+                <div className="tab-pane animate-fade-in user-directory-pane">
+                  <div className="directory-header-row">
+                    <div className="header-title-group">
+                      <h2>AI & API Settings</h2>
+                      <p className="subtitle">Configure global AI LLM provider models and centralized B2B API integrations keys</p>
+                    </div>
+                  </div>
+
+                  {settingsSuccess && (
+                    <div style={{
+                      maxWidth: '1200px',
+                      margin: '16px auto',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      color: '#22c55e',
+                      fontSize: '0.88rem',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <CheckCircle size={16} />
+                      {settingsSuccess}
+                    </div>
+                  )}
+
+                  {settingsError && (
+                    <div style={{
+                      maxWidth: '1200px',
+                      margin: '16px auto',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      color: '#ef4444',
+                      fontSize: '0.88rem',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <AlertCircle size={16} />
+                      {settingsError}
+                    </div>
+                  )}
+
+                  <div className="settings-dashboard-grid">
+                    {/* Card 1: AI Model Configuration */}
+                    <form onSubmit={handleSaveSettingsSubmit} className="settings-card-panel">
+                      <div className="card-panel-header">
+                        <h3>AI Model Configurations</h3>
+                        <p>Setup active LLM provider, default model name, and generation temperature settings.</p>
+                      </div>
+
+                      <div className="card-panel-body">
+                        <div className="form-group">
+                          <label>Active AI Provider</label>
+                          <CustomSelect 
+                            value={globalProvider} 
+                            onChange={(val) => setGlobalProvider(val)}
+                            options={[
+                              { value: 'groq', label: 'Groq Cloud' },
+                              { value: 'openai', label: 'OpenAI (ChatGPT)' },
+                              { value: 'ollama', label: 'Ollama (Local LLM)' },
+                              { value: 'anthropic', label: 'Anthropic (Claude)' }
+                            ]}
+                          />
+                        </div>
+
+                        {globalProvider === 'ollama' && (
+                          <div className="form-group">
+                            <label>Ollama Host URL</label>
+                            <input 
+                              type="text" 
+                              value={globalOllamaHost} 
+                              onChange={(e) => setGlobalOllamaHost(e.target.value)}
+                              placeholder="e.g. http://localhost:11434"
+                            />
+                          </div>
+                        )}
+
+                        <div className="form-group">
+                          <label>Model Name</label>
+                          <input 
+                            type="text" 
+                            value={globalModel} 
+                            onChange={(e) => setGlobalModel(e.target.value)}
+                            placeholder="e.g. llama-3.3-70b-versatile"
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Generation Temperature ({globalTemperature})</label>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="1.2" 
+                            step="0.1" 
+                            value={globalTemperature} 
+                            onChange={(e) => setGlobalTemperature(parseFloat(e.target.value))}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="card-panel-footer">
+                        <button 
+                          type="submit" 
+                          className="panel-save-btn" 
+                          disabled={settingsLoading}
+                        >
+                          {settingsLoading ? 'Saving...' : 'Save AI Settings'}
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Card 2: API Keys Configuration */}
+                    <form onSubmit={handleSaveSettingsSubmit} className="settings-card-panel">
+                      <div className="card-panel-header">
+                        <h3>Integrations API Keys</h3>
+                        <p>Configure API authorization keys for lead enrichment, intent analysis, and maps searches.</p>
+                      </div>
+
+                      <div className="card-panel-body">
+                        <div className="form-group">
+                          <label>Groq API Secret Key</label>
+                          <input 
+                            type="password" 
+                            value={globalGroqKey} 
+                            onChange={(e) => setGlobalGroqKey(e.target.value)}
+                            placeholder="e.g. gsk_..."
+                          />
+                          <small>Used for B2B lead intent scoring and personalized cold outreach pitch generation.</small>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Google Places API Key</label>
+                          <input 
+                            type="password" 
+                            value={globalPlacesKey} 
+                            onChange={(e) => setGlobalPlacesKey(e.target.value)}
+                            placeholder="e.g. AIzaSy..."
+                          />
+                          <small>If blank, the scanner falls back to local Playwright browser emulation scraping.</small>
+                        </div>
+                      </div>
+
+                      <div className="card-panel-footer">
+                        <button 
+                          type="submit" 
+                          className="panel-save-btn" 
+                          disabled={settingsLoading}
+                        >
+                          {settingsLoading ? 'Saving...' : 'Save API Keys'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </main>
@@ -2159,7 +2391,7 @@ const AdminPanel = ({ user, onLogout }) => {
                   <label>Email Address *</label>
                   <input 
                     type="email" 
-                    placeholder="Enter email address (e.g. john@mapflow.ai)"
+                    placeholder="Enter email address (e.g. john@leadgen.ai)"
                     value={adminEmailInput}
                     onChange={(e) => setAdminEmailInput(e.target.value)}
                     required

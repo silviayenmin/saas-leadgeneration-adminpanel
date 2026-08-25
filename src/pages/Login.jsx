@@ -130,7 +130,7 @@ const Login = ({ onLoginSuccess }) => {
           <div className="brand-logo">
             <Sparkles size={24} />
           </div>
-          <h1>MapFlow AI</h1>
+          <h1>LeadGen AI</h1>
           <p className="subtitle">Admin Console</p>
         </div>
 
@@ -168,7 +168,7 @@ const Login = ({ onLoginSuccess }) => {
                 <input
                   id="email"
                   type="email"
-                  placeholder="admin@mapflow.ai"
+                  placeholder="admin@leadgen.ai"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
@@ -236,7 +236,7 @@ const Login = ({ onLoginSuccess }) => {
                 <input
                   id="reset-email"
                   type="email"
-                  placeholder="admin@mapflow.ai"
+                  placeholder="admin@leadgen.ai"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   disabled={loading}
